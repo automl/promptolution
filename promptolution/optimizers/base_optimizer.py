@@ -82,7 +82,7 @@ class BaseOptimizer(ABC):
                 self.prompts = self._step()
             except Exception as e:
                 # exit training loop and gracefully fail
-                logger.error(f"⛔ Error during optimization step! ⚠️ Exiting optimization loop.", exc_info=e)
+                logger.error("⛔ Error during optimization step! ⚠️ Exiting optimization loop.", exc_info=e)
                 break
 
             # Callbacks at the end of each step

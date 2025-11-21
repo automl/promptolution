@@ -141,7 +141,7 @@ class JudgeTask(BaseTask):
                 score = (score - self.min_score) / (self.max_score - self.min_score)
                 score = max(0.0, min(1.0, score))
             except ValueError:
-                logger.warning(f"Failed to parse score '{score}' as float. Defaulting to a score 0.0.")
+                logger.warning(f"Failed to parse score '{score_str}' as float. Defaulting to a score 0.0.")
                 score = 0.0
 
             scores.append(score)
