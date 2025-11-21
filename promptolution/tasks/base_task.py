@@ -141,7 +141,10 @@ class BaseTask(ABC):
             datapoint_seqs = []
             for x, y in zip(xs, ys):
                 cache_key = (prompt, x, y)
-                datapoint_scores.append(self.eval_cache[cache_key])
+                datapoint_score = self.eval_cache.get(cache_key)
+                if datapoint_score is None:
+                    continue
+                datapoint_scores.append(datapoint_score)
                 if return_seq:
                     datapoint_seqs.append(self.seq_cache.get(cache_key, ""))
             scores.append(datapoint_scores)
