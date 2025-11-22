@@ -8,14 +8,14 @@ readme = "README.md"
 [tool.poetry.dependencies]
 python = ">=3.10,<3.13"
 numpy = ">=1.26.0, <3.0.0"
-pandas = "^2.2.2"
-tqdm = "^4.66.5"
-scikit-learn = "^1.5.2"
-fastparquet = "^2024.11.0"
-openai = {version = "^1.0.0", optional = true}
-requests = {version = "^2.31.0", optional = true}
-vllm = {version = "^0.10.1.1", optional = true}
-transformers = {version = "^4.48.0", optional = true}
+pandas = ">=2.2.2"
+tqdm = ">=4.66.5"
+scikit-learn = ">=1.5.2"
+fastparquet = ">=2024.11.0"
+openai = {version = ">=1.0.0", optional = true}
+requests = {version = ">=2.31.0", optional = true}
+vllm = {version = ">=0.10.1.1", optional = true}
+transformers = {version = ">=4.48.0", optional = true}
 
 [tool.poetry.extras]
 api = ["openai", "requests"]
@@ -25,41 +25,41 @@ transformers = ["transformers"]
 [tool.poetry.group.api]
 optional = true
 [tool.poetry.group.api.dependencies]
-openai = "^1.0.0"
-requests = "^2.31.0"
+openai = ">=1.0.0"
+requests = ">=2.31.0"
 
 [tool.poetry.group.vllm]
 optional = true
 [tool.poetry.group.vllm.dependencies]
-vllm = "^0.10.1.1"
+vllm = ">=0.10.1.1"
 
 [tool.poetry.group.transformers]
 optional = true
 [tool.poetry.group.transformers.dependencies]
-transformers = "^4.48.0"
+transformers = ">=4.48.0"
 
 [tool.poetry.group.dev.dependencies]
-black = "^24.4.2"
-flake8 = "^7.1.0"
-isort = "^5.13.2"
-pre-commit = "^3.7.1"
-ipykernel = "^6.29.5"
-mypy = "^1.8.0"
+black = ">=24.4.2"
+flake8 = ">=7.1.0"
+isort = ">=5.13.2"
+pre-commit = ">=3.7.1"
+ipykernel = ">=6.29.5"
+mypy = ">=1.8.0"
 
 [tool.poetry.group.test.dependencies]
-pytest = "^8.3.5"
-pytest-cov = "^6.1.1"
-openai = "^1.0.0"
-requests = "^2.31.0"
-vllm = "^0.10.1.1"
-transformers = "^4.48.0"
+pytest = ">=8.3.5"
+pytest-cov = ">=6.1.1"
+openai = ">=1.0.0"
+requests = ">=2.31.0"
+vllm = ">=0.10.1.1"
+transformers = ">=4.48.0"
 
 [tool.poetry.group.docs.dependencies]
-mkdocs = "^1.6.1"
-mkdocs-material = "^9.5.39"
-mkdocstrings = {version = "^0.26.1", extras = ["python"]}
-jupyter = "^1.1.1"
-nbconvert = "^7.16.6"
+mkdocs = ">=1.6.1"
+mkdocs-material = ">=9.5.39"
+mkdocstrings = {version = ">=0.26.1", extras = ["python"]}
+jupyter = ">=1.1.1"
+nbconvert = ">=7.16.6"
 
 [build-system]
 requires = ["poetry-core"]
