@@ -201,10 +201,12 @@ def test_capo_crossover_prompt(mock_meta_llm, mock_predictor, initial_prompts, m
     father = Prompt("Determine if the review is positive or negative.", ["Input: This is terrible. Output: Negative"])
     optimizer._crossover([mother, father])
 
+    full_task_desc = mock_task.task_description + "\n" + optimizer.predictor.extraction_description
+
     expected_meta_prompt = (
         CAPO_CROSSOVER_TEMPLATE.replace("<mother>", mother.instruction)
         .replace("<father>", father.instruction)
-        .replace("<task_desc>", mock_task.task_description)
+        .replace("<task_desc>", full_task_desc)
     )
 
     assert mock_meta_llm.call_history[0]["prompts"][0] == expected_meta_prompt
@@ -219,12 +221,13 @@ def test_capo_mutate_prompt(mock_meta_llm, mock_predictor, initial_prompts, mock
         initial_prompts=initial_prompts,
         df_few_shots=mock_df,
     )
+    full_task_desc = mock_task.task_description + "\n" + optimizer.predictor.extraction_description
 
     parent = Prompt("Classify the sentiment of the text.", ["Input: I love this! Output: Positive"])
     optimizer._mutate([parent])
 
     expected_meta_prompt = CAPO_MUTATION_TEMPLATE.replace("<instruction>", parent.instruction).replace(
-        "<task_desc>", mock_task.task_description
+        "<task_desc>", full_task_desc
     )
 
     assert mock_meta_llm.call_history[0]["prompts"][0] == expected_meta_prompt

@@ -131,9 +131,12 @@ class BaseOptimizer(ABC):
 
     def _initialize_meta_template(self, template: str) -> str:
         task_description = getattr(self.task, "task_description")
+        extraction_description = getattr(self.predictor, "extraction_description")
         if self.config is not None and getattr(self.config, "task_description") is not None:
             task_description = self.config.task_description
         if task_description is None:
             logger.warning("Task description is not provided. Please make sure to include relevant task details.")
             task_description = ""
+        if extraction_description is not None:
+            task_description += "\n" + extraction_description
         return template.replace("<task_desc>", task_description)

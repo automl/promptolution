@@ -80,7 +80,6 @@ def run_optimization(df: pd.DataFrame, config: "ExperimentConfig") -> List[Promp
     llm = get_llm(config=config)
     predictor = get_predictor(llm, config=config)
 
-    config.task_description = (config.task_description or "") + " " + (predictor.extraction_description or "")
     if config.optimizer == "capo" and (config.eval_strategy is None or "block" not in config.eval_strategy):
         logger.warning("📌 CAPO requires block evaluation strategy. Setting it to 'sequential_block'.")
         config.eval_strategy = "sequential_block"
