@@ -1,6 +1,5 @@
 """Helper functions for the usage of the libary."""
 
-
 from typing import TYPE_CHECKING, Callable, List, Literal, Optional
 
 from promptolution.tasks.judge_tasks import JudgeTask
@@ -221,50 +220,27 @@ def get_optimizer(
         ValueError: If an unknown optimizer type is specified
     """
     final_optimizer = optimizer or (config.optimizer if config else None)
-    final_task_description = task_description or (config.task_description if config else None)
+    if config is None:
+        config = ExperimentConfig()
+    if task_description is not None:
+        config.task_description = task_description
 
     if final_optimizer == "capo":
-        crossover_template = (
-            CAPO_CROSSOVER_TEMPLATE.replace("<task_desc>", final_task_description)
-            if final_task_description
-            else CAPO_CROSSOVER_TEMPLATE
-        )
-        mutation_template = (
-            CAPO_MUTATION_TEMPLATE.replace("<task_desc>", final_task_description)
-            if final_task_description
-            else CAPO_MUTATION_TEMPLATE
-        )
-
         return CAPO(
             predictor=predictor,
             meta_llm=meta_llm,
             task=task,
-            crossover_template=crossover_template,
-            mutation_template=mutation_template,
             config=config,
         )
 
     if final_optimizer == "evopromptde":
-        template = (
-            EVOPROMPT_DE_TEMPLATE_TD.replace("<task_desc>", final_task_description)
-            if final_task_description
-            else EVOPROMPT_DE_TEMPLATE
-        )
-        return EvoPromptDE(predictor=predictor, meta_llm=meta_llm, task=task, prompt_template=template, config=config)
+        return EvoPromptDE(predictor=predictor, meta_llm=meta_llm, task=task, config=config)
 
     if final_optimizer == "evopromptga":
-        template = (
-            EVOPROMPT_GA_TEMPLATE_TD.replace("<task_desc>", final_task_description)
-            if final_task_description
-            else EVOPROMPT_GA_TEMPLATE
-        )
-        return EvoPromptGA(predictor=predictor, meta_llm=meta_llm, task=task, prompt_template=template, config=config)
+        return EvoPromptGA(predictor=predictor, meta_llm=meta_llm, task=task, config=config)
 
     if final_optimizer == "opro":
-        template = (
-            OPRO_TEMPLATE_TD.replace("<task_desc>", final_task_description) if final_task_description else OPRO_TEMPLATE
-        )
-        return OPRO(predictor=predictor, meta_llm=meta_llm, task=task, prompt_template=template, config=config)
+        return OPRO(predictor=predictor, meta_llm=meta_llm, task=task, config=config)
 
     raise ValueError(f"Unknown optimizer: {final_optimizer}")
 

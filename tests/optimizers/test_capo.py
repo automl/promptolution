@@ -6,6 +6,7 @@ from tests.mocks.mock_task import MockTask
 
 from promptolution.optimizers.capo import CAPO
 from promptolution.utils.prompt import Prompt
+from promptolution.utils.templates import CAPO_CROSSOVER_TEMPLATE, CAPO_MUTATION_TEMPLATE
 
 
 def test_capo_initialization(mock_meta_llm, mock_predictor, initial_prompts, mock_task, mock_df):
@@ -184,3 +185,46 @@ def test_do_racing(mock_meta_llm, mock_predictor, initial_prompts, mock_df):
 
     assert mock_task.reset_block_idx.call_count == 2
     assert mock_task.increment_block_idx.call_count == 3
+
+
+def test_capo_crossover_prompt(mock_meta_llm, mock_predictor, initial_prompts, mock_task, mock_df):
+    """Test that when _crossover is called, the mock_meta_llm received a call with the correct meta prompt."""
+    optimizer = CAPO(
+        predictor=mock_predictor,
+        task=mock_task,
+        meta_llm=mock_meta_llm,
+        initial_prompts=initial_prompts,
+        df_few_shots=mock_df,
+    )
+
+    mother = Prompt("Classify the sentiment of the text.", ["Input: I love this! Output: Positive"])
+    father = Prompt("Determine if the review is positive or negative.", ["Input: This is terrible. Output: Negative"])
+    optimizer._crossover([mother, father])
+
+    expected_meta_prompt = (
+        CAPO_CROSSOVER_TEMPLATE.replace("<mother>", mother.instruction)
+        .replace("<father>", father.instruction)
+        .replace("<task_desc>", mock_task.task_description)
+    )
+
+    assert mock_meta_llm.call_history[0]["prompts"][0] == expected_meta_prompt
+
+
+def test_capo_mutate_prompt(mock_meta_llm, mock_predictor, initial_prompts, mock_task, mock_df):
+    """Test that when _mutate is called, the mock_meta_llm received a call with the correct meta prompt."""
+    optimizer = CAPO(
+        predictor=mock_predictor,
+        task=mock_task,
+        meta_llm=mock_meta_llm,
+        initial_prompts=initial_prompts,
+        df_few_shots=mock_df,
+    )
+
+    parent = Prompt("Classify the sentiment of the text.", ["Input: I love this! Output: Positive"])
+    optimizer._mutate([parent])
+
+    expected_meta_prompt = CAPO_MUTATION_TEMPLATE.replace("<instruction>", parent.instruction).replace(
+        "<task_desc>", mock_task.task_description
+    )
+
+    assert mock_meta_llm.call_history[0]["prompts"][0] == expected_meta_prompt

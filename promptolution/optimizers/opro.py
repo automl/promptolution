@@ -56,13 +56,13 @@ class OPRO(BaseOptimizer):
             config: "ExperimentConfig" overwriting default parameters
         """
         self.meta_llm = meta_llm
-        self.meta_prompt_template = prompt_template or OPRO_TEMPLATE
         self.max_num_instructions = max_num_instructions
         self.num_instructions_per_step = num_instructions_per_step
         self.num_few_shots = num_few_shots
         super().__init__(
             predictor=predictor, task=task, initial_prompts=initial_prompts, callbacks=callbacks, config=config
         )
+        self.meta_prompt_template = self._initialize_meta_template(prompt_template or OPRO_TEMPLATE)
 
     def _sample_examples(self) -> str:
         """Sample few-shot examples from the dataset.

@@ -43,6 +43,8 @@ class CAPO(BaseOptimizer):
         task: "BaseTask",
         meta_llm: "BaseLLM",
         initial_prompts: Optional[List[str]] = None,
+        crossover_template: Optional[str] = None,
+        mutation_template: Optional[str] = None,
         crossovers_per_iter: int = 4,
         upper_shots: int = 5,
         max_n_blocks_eval: int = 10,
@@ -52,8 +54,6 @@ class CAPO(BaseOptimizer):
         check_fs_accuracy: bool = True,
         create_fs_reasoning: bool = True,
         df_few_shots: Optional[pd.DataFrame] = None,
-        crossover_template: Optional[str] = None,
-        mutation_template: Optional[str] = None,
         callbacks: Optional[List["BaseCallback"]] = None,
         config: Optional["ExperimentConfig"] = None,
     ) -> None:
@@ -64,6 +64,8 @@ class CAPO(BaseOptimizer):
             task (BaseTask): The task instance containing dataset and description.
             meta_llm (BaseLLM): The meta language model for crossover/mutation.
             initial_prompts (List[str]): Initial prompt instructions.
+            crossover_template (str, optional): Template for crossover instructions.
+            mutation_template (str, optional): Template for mutation instructions.
             crossovers_per_iter (int): Number of crossover operations per iteration.
             upper_shots (int): Maximum number of few-shot examples per prompt.
             p_few_shot_reasoning (float): Probability of generating llm-reasoning for few-shot examples, instead of simply using input-output pairs.
@@ -76,16 +78,11 @@ class CAPO(BaseOptimizer):
             create_fs_reasoning (bool): Whether to create reasoning for few-shot examples using the downstream model,
                 instead of simply using input-output pairs from the few shots DataFrame. Default is True.
             df_few_shots (pd.DataFrame): DataFrame containing few-shot examples. If None, will pop 10% of datapoints from task.
-            crossover_template (str, optional): Template for crossover instructions.
-            mutation_template (str, optional): Template for mutation instructions.
             callbacks (List[Callable], optional): Callbacks for optimizer events.
             config (ExperimentConfig, optional): Configuration for the optimizer.
         """
         self.meta_llm = meta_llm
         self.downstream_llm = predictor.llm
-
-        self.crossover_template = crossover_template or CAPO_CROSSOVER_TEMPLATE
-        self.mutation_template = mutation_template or CAPO_MUTATION_TEMPLATE
 
         self.crossovers_per_iter = crossovers_per_iter
         self.upper_shots = upper_shots
@@ -100,6 +97,9 @@ class CAPO(BaseOptimizer):
         self.create_fs_reasoning = create_fs_reasoning
 
         super().__init__(predictor, task, initial_prompts, callbacks, config)
+
+        self.crossover_template = self._initialize_meta_template(crossover_template or CAPO_CROSSOVER_TEMPLATE)
+        self.mutation_template = self._initialize_meta_template(mutation_template or CAPO_MUTATION_TEMPLATE)
 
         self.df_few_shots = df_few_shots if df_few_shots is not None else task.pop_datapoints(frac=0.1)
         if self.max_n_blocks_eval > self.task.n_blocks:

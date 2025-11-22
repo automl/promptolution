@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING, List, Optional
 from promptolution.optimizers.base_optimizer import BaseOptimizer
 from promptolution.utils.formatting import extract_from_tag
 from promptolution.utils.prompt import Prompt, sort_prompts_by_scores
+from promptolution.utils.templates import EVOPROMPT_DE_TEMPLATE_TD
 
 if TYPE_CHECKING:  # pragma: no cover
     from promptolution.llms.base_llm import BaseLLM
@@ -43,20 +44,20 @@ class EvoPromptDE(BaseOptimizer):
         self,
         predictor: "BasePredictor",
         task: "BaseTask",
-        prompt_template: str,
         meta_llm: "BaseLLM",
         initial_prompts: Optional[List[str]] = None,
+        prompt_template: Optional[str] = None,
         donor_random: bool = False,
         callbacks: Optional[List["BaseCallback"]] = None,
         config: Optional["ExperimentConfig"] = None,
     ) -> None:
         """Initialize the EvoPromptDE optimizer."""
-        self.prompt_template = prompt_template
         self.donor_random = donor_random
         self.meta_llm = meta_llm
         super().__init__(
             predictor=predictor, task=task, initial_prompts=initial_prompts, callbacks=callbacks, config=config
         )
+        self.prompt_template = self._initialize_meta_template(prompt_template or EVOPROMPT_DE_TEMPLATE_TD)
 
     def _pre_optimization_loop(self) -> None:
         self.scores = self.task.evaluate(self.prompts, self.predictor, return_agg_scores=True)
