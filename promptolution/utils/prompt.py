@@ -2,7 +2,7 @@
 
 from typing import List, Optional, Tuple
 
-from promptolution.utils.templates import DOWNSTREAM_TEMPLATE
+from promptolution.utils.templates import DOWNSTREAM_TEMPLATE, DOWNSTREAM_TEMPLATE_W_FEWSHOTS
 
 
 class Prompt:
@@ -20,7 +20,12 @@ class Prompt:
         """
         self.instruction = instruction.strip()
         self.few_shots = few_shots or []
-        self.downstream_template = downstream_template or DOWNSTREAM_TEMPLATE
+        if downstream_template is None:
+            if self.few_shots:
+                downstream_template = DOWNSTREAM_TEMPLATE_W_FEWSHOTS
+            else:
+                downstream_template = DOWNSTREAM_TEMPLATE
+        self.downstream_template = downstream_template
 
     def construct_prompt(self) -> str:
         """Constructs the full prompt string by replacing placeholders in the template with the instruction and formatted examples.

@@ -10,6 +10,7 @@ from tests.mocks.mock_task import MockTask
 
 from promptolution.helpers import run_evaluation, run_experiment, run_optimization
 from promptolution.utils import ExperimentConfig
+from promptolution.utils.prompt import Prompt
 
 
 @pytest.fixture
@@ -225,14 +226,15 @@ def test_run_evaluation(mock_get_task, mock_get_predictor, mock_get_llm, sample_
 def test_run_experiment(mock_run_evaluation, mock_run_optimization, sample_df, experiment_config):
     """Test the run_experiment function."""
     # Set up mocks
-    optimized_prompts = [
+    optimized_prompts_strs = [
         "Classify this as positive or negative:",
         "Determine the sentiment (positive/negative/neutral):",
     ]
+    optimized_prompts = [Prompt(p) for p in optimized_prompts_strs]
     mock_run_optimization.return_value = optimized_prompts
 
     # Create a sample results DataFrame
-    eval_results = pd.DataFrame({"prompt": optimized_prompts, "score": [0.8, 0.7]})
+    eval_results = pd.DataFrame({"prompt": optimized_prompts_strs, "score": [0.8, 0.7]})
     mock_run_evaluation.return_value = eval_results
 
     # Run the function
@@ -256,7 +258,7 @@ def test_run_experiment(mock_run_evaluation, mock_run_optimization, sample_df, e
     assert len(train_df) + len(test_df) == len(sample_df)
 
     # Verify the prompts were passed to evaluation
-    assert mock_run_evaluation.call_args[0][2] == optimized_prompts
+    assert mock_run_evaluation.call_args[0][2] == optimized_prompts_strs
 
 
 def test_helpers_integration(sample_df, experiment_config):
@@ -286,7 +288,8 @@ def test_helpers_integration(sample_df, experiment_config):
         mock_get_optimizer.return_value = mock_optimizer
 
         # Set up optimizer to return prompts
-        optimized_prompts = ["Classify sentiment:", "Determine if positive/negative:"]
+        optimized_prompts_str = ["Classify sentiment:", "Determine if positive/negative:"]
+        optimized_prompts = [Prompt(p) for p in optimized_prompts_str]
         mock_optimizer.optimize.return_value = optimized_prompts
 
         # Run the experiment
@@ -295,7 +298,7 @@ def test_helpers_integration(sample_df, experiment_config):
         # Verify results
         assert isinstance(result, pd.DataFrame)
         assert len(result) == 2
-        assert all(p in result["prompt"].values for p in optimized_prompts)
+        assert all(p in result["prompt"].values for p in optimized_prompts_str)
 
         # Verify optimization was called
         mock_optimizer.optimize.assert_called_once()

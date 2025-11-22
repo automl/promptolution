@@ -139,7 +139,9 @@ Include the name of the output classes in the prompt.
 The instruction was"""
 
 
-DOWNSTREAM_TEMPLATE = """<instruction>
+DOWNSTREAM_TEMPLATE = "<instruction>"
+
+DOWNSTREAM_TEMPLATE_W_FEWSHOTS = """<instruction>
 
 <few_shots>
 
