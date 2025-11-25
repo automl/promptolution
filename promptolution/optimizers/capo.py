@@ -320,6 +320,10 @@ def filter_survivors(
     Returns:
         Tuple[List[Prompt], List[List[float]]]: Filtered candidates and their scores.
     """
-    filtered_candidates = list(compress(candidates, mask))
-    filtered_scores = list(compress(scores, mask))
+    assert len(candidates) == len(mask), "Length of candidates, scores, and mask must be the same."
+    assert all(len(score) == len(mask) for score in scores), "Length of candidates, scores, and mask must be the same."
+
+    filtered_candidates = [c for c, m in zip(candidates, mask) if m]
+    filtered_scores = [[s for s, m in zip(score, mask) if m] for score in scores]
+
     return filtered_candidates, filtered_scores
