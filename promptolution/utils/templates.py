@@ -138,11 +138,13 @@ Include the name of the output classes in the prompt.
 
 The instruction was"""
 
-PROMPT_CREATION_TEMPLATE_FROM_TASK_DESCRIPTION = """Please create a prompt for the following task, not using any placeholders, working universally, for any datapoint-specific instructions following each system prompt.
+PROMPT_CREATION_TEMPLATE_FROM_TASK_DESCRIPTION = """Please create diverse system prompts for the following task, not using any placeholders, working universally, for any datapoint-specific instructions following each system prompt.
 
 Task: <task_desc>
 
-Explicitly state this expected format as part of the prompts."""
+Explicitly state the expected format above by repeating its exact character sequence verbatim in every prompt.
+
+Create overall <n_prompts> prompts within quotes as an array. Do not response with anything else. Start the array with [ and end with ]. Separate each prompt by a comma."""
 
 
 DOWNSTREAM_TEMPLATE = "<instruction>"

@@ -1,5 +1,6 @@
 """Utility functions for prompt creation."""
 
+import json
 
 import numpy as np
 
@@ -100,9 +101,9 @@ def create_prompts_from_samples(
             # sample
             xs: List[str] = []
             ys: List[str] = []
-            for label, num_samples in zip(unique_labels, samples_per_class):
+            for label, n_per_class in zip(unique_labels, samples_per_class):
                 indices = np.where(task.ys == label)[0]
-                indices = np.random.choice(indices, n_samples, replace=False)
+                indices = np.random.choice(indices, n_per_class, replace=False)
                 xs.extend(task.xs[indices])
                 ys.extend(task.ys[indices])
 
@@ -134,19 +135,15 @@ def create_prompts_from_task_description(
         task_description (str): The description of the task to generate prompts for.
         llm (BaseLLM): The language model to use for generating the prompts.
         meta_prompt (str): The meta prompt to use for generating the prompts.
-        If None, a default meta prompt is used.
+            If None, a default meta prompt is used.
         n_prompts (int): The number of prompts to generate.
-
-    Returns:
-        List[str]: A list of generated prompts.
     """
     if meta_prompt is None:
         meta_prompt = PROMPT_CREATION_TEMPLATE_FROM_TASK_DESCRIPTION
 
-    meta_prompt = meta_prompt.replace("<task_desc>", task_description)
+    meta_prompt = meta_prompt.replace("<task_desc>", task_description).replace("<n_prompts>", str(n_prompts))
 
-    meta_prompts = [meta_prompt for _ in range(n_prompts)]
-    prompts = llm.get_response(meta_prompts)
-    prompts = extract_from_tag(prompts, "<prompt>", "</prompt>")
+    prompts_str = llm.get_response(meta_prompt)[0]
+    prompts = json.loads(prompts_str)
 
     return prompts
