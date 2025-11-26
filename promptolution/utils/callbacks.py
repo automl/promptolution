@@ -155,7 +155,7 @@ class FileOutputCallback(BaseCallback):
                 "output_tokens": [optimizer.predictor.llm.output_token_count] * len(optimizer.prompts),
                 "time": [datetime.now().timestamp()] * len(optimizer.prompts),
                 "score": optimizer.scores,
-                "prompt": optimizer.prompts,
+                "prompt": [str(p) for p in optimizer.prompts],
             }
         )
 
