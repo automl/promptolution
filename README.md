@@ -11,11 +11,11 @@
 
 
 <p align="center">
-  <img src="https://mcml.ai/images/MCML_Logo_cropped.jpg" height="45">
-  <img src="https://github.com/user-attachments/assets/1ae42b4a-163e-43ed-b691-c253d4f4c814"  height="45">
-  <img  src="https://github.com/user-attachments/assets/e70ec1d4-bbc4-4ff3-8803-8806bc879bb0"  height="45"/>
-  <img src="https://mcml.ai/images/footer/lmu_white.webp" height="45">
-  <img src="https://mcml.ai/images/footer/tum_white.webp" height="45">
+  <img src="https://mcml.ai/images/MCML_Logo_cropped.jpg" height="40">
+  <img src="https://github.com/user-attachments/assets/1ae42b4a-163e-43ed-b691-c253d4f4c814"  height="40">
+  <img  src="https://github.com/user-attachments/assets/e70ec1d4-bbc4-4ff3-8803-8806bc879bb0"  height="40"/>
+  <img src="https://mcml.ai/images/footer/lmu_white.webp" height="40">
+  <img src="https://mcml.ai/images/footer/tum_white.webp" height="40">
 </p>
 
 
@@ -124,4 +124,3 @@ pre-commit run --all-files
 poetry run python -m coverage run -m pytest
 poetry run python -m coverage report
 ```
-Just tell me — happy to tune it further.
