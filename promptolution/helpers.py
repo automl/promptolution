@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING, Callable, List, Literal, Optional, Union, cast
 from promptolution.tasks.judge_tasks import JudgeTask
 from promptolution.tasks.reward_tasks import RewardTask
 from promptolution.utils.prompt import Prompt
+from promptolution.utils.prompt_creation import create_prompts_from_task_description
 
 if TYPE_CHECKING:  # pragma: no cover
     from promptolution.exemplar_selectors.base_exemplar_selector import BaseExemplarSelector
@@ -70,6 +71,13 @@ def run_optimization(df: pd.DataFrame, config: "ExperimentConfig") -> List[Promp
     """
     llm = get_llm(config=config)
     predictor = get_predictor(llm, config=config)
+
+    if getattr(config, "prompts") is None:
+        config.prompts = create_prompts_from_task_description(
+            task_description=config.task_description,
+            llm=llm,
+            n_prompts=config.n_initial_prompts,
+        )
 
     if config.optimizer == "capo" and (config.eval_strategy is None or "block" not in config.eval_strategy):
         logger.warning("📌 CAPO requires block evaluation strategy. Setting it to 'sequential_block'.")
