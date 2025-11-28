@@ -73,11 +73,12 @@ def run_optimization(df: pd.DataFrame, config: "ExperimentConfig") -> List[Promp
     predictor = get_predictor(llm, config=config)
 
     if getattr(config, "prompts") is None:
-        config.prompts = create_prompts_from_task_description(
+        initial_prompts = create_prompts_from_task_description(
             task_description=config.task_description,
             llm=llm,
             n_prompts=config.n_initial_prompts,
         )
+        config.prompts = [Prompt(p) for p in initial_prompts]
 
     if config.optimizer == "capo" and (config.eval_strategy is None or "block" not in config.eval_strategy):
         logger.warning("📌 CAPO requires block evaluation strategy. Setting it to 'sequential_block'.")
