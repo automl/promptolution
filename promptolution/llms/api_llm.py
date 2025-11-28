@@ -147,7 +147,7 @@ class APILLM(BaseLLM):
                 if attempt < self.max_retries:
                     delay = self.retry_base_delay_s * (2**attempt)
                     logger.warning(
-                        "meta LLM call failed (%d/%d): %s — retrying in %.2fs",
+                        "LLM call failed (%d/%d): %s — retrying in %.2fs",
                         attempt + 1,
                         self.max_retries + 1,
                         e,
@@ -181,7 +181,7 @@ class APILLM(BaseLLM):
         except asyncio.TimeoutError:
             for t in tasks:
                 t.cancel()
-            raise TimeoutError(f"Meta LLM batch timed out after {self.gather_timeout_s}s")
+            raise TimeoutError(f"LLM batch timed out after {self.gather_timeout_s}s")
 
         outs: List[str] = []
         first_exc: Optional[BaseException] = None
@@ -197,7 +197,7 @@ class APILLM(BaseLLM):
             for t in tasks:
                 if not t.done():
                     t.cancel()
-            raise RuntimeError(f"Meta LLM batch failed: {first_exc}") from first_exc
+            raise RuntimeError(f"LLM batch failed: {first_exc}") from first_exc
 
         return outs
 
@@ -240,6 +240,6 @@ class APILLM(BaseLLM):
             return r
         except FuturesTimeout:
             fut.cancel()
-            raise TimeoutError(f"Meta LLM batch (future) timed out after {self.gather_timeout_s + 5.0}s")
+            raise TimeoutError(f"LLM batch (future) timed out after {self.gather_timeout_s + 5.0}s")
         except Exception:
             raise

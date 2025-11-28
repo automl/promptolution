@@ -55,9 +55,10 @@ def sort_prompts_by_scores(
     Args:
         prompts (List[Prompt]): List of Prompt objects.
         scores (List[float]): Corresponding list of scores.
+        top_k (Optional[int]): If provided, limits the result to the top_k prompts. Defaults to None (returns all).
 
     Returns:
-        List[Prompt]: Prompts sorted by scores in descending order.
+        Tuple[List[Prompt], List[float]]: A tuple containing prompts sorted by scores in descending order and their corresponding sorted scores.
     """
     assert len(prompts) == len(scores), "Prompts and scores must have the same length."
 

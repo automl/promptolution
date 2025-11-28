@@ -6,9 +6,9 @@ from abc import ABC, abstractmethod
 import numpy as np
 import pandas as pd
 
-from typing import TYPE_CHECKING, Any, Dict, List, Literal, Optional, Tuple, Union, overload
+from typing import TYPE_CHECKING, Dict, List, Literal, Optional, Tuple, Union, overload
 
-from promptolution.optimizers.base_optimizer import Prompt
+from promptolution.utils.prompt import Prompt
 
 if TYPE_CHECKING:  # pragma: no cover
     from promptolution.predictors.base_predictor import BasePredictor

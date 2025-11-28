@@ -1,6 +1,6 @@
 """Helper functions for the usage of the libary."""
 
-from typing import TYPE_CHECKING, Callable, List, Literal, Optional
+from typing import TYPE_CHECKING, Callable, List, Literal, Optional, Union, cast
 
 from promptolution.tasks.judge_tasks import JudgeTask
 from promptolution.tasks.reward_tasks import RewardTask
@@ -28,20 +28,10 @@ from promptolution.optimizers.capo import CAPO
 from promptolution.optimizers.evoprompt_de import EvoPromptDE
 from promptolution.optimizers.evoprompt_ga import EvoPromptGA
 from promptolution.optimizers.opro import OPRO
-from promptolution.predictors.first_occurence_predictor import FirstOccurrencePredictor
+from promptolution.predictors.first_occurrence_predictor import FirstOccurrencePredictor
 from promptolution.predictors.maker_based_predictor import MarkerBasedPredictor
 from promptolution.tasks.classification_tasks import ClassificationTask
 from promptolution.utils.logging import get_logger
-from promptolution.utils.templates import (
-    CAPO_CROSSOVER_TEMPLATE,
-    CAPO_MUTATION_TEMPLATE,
-    EVOPROMPT_DE_TEMPLATE,
-    EVOPROMPT_DE_TEMPLATE_TD,
-    EVOPROMPT_GA_TEMPLATE,
-    EVOPROMPT_GA_TEMPLATE_TD,
-    OPRO_TEMPLATE,
-    OPRO_TEMPLATE_TD,
-)
 
 logger = get_logger(__name__)
 
@@ -95,13 +85,15 @@ def run_optimization(df: pd.DataFrame, config: "ExperimentConfig") -> List[Promp
     logger.warning("🔥 Starting optimization...")
     prompts = optimizer.optimize(n_steps=config.n_steps)
 
-    if hasattr(config, "prepend_exemplars") and config.prepend_exemplars:
+    if hasattr(config, "posthoc_exemplar_selection") and config.posthoc_exemplar_selection:
         selector = get_exemplar_selector(config.exemplar_selector, task, predictor)
         prompts = [selector.select_exemplars(p, n_examples=config.n_exemplars) for p in prompts]
     return prompts
 
 
-def run_evaluation(df: pd.DataFrame, config: "ExperimentConfig", prompts: List[str]) -> pd.DataFrame:
+def run_evaluation(
+    df: pd.DataFrame, config: "ExperimentConfig", prompts: Union[List[Prompt], List[str]]
+) -> pd.DataFrame:
     """Run the evaluation phase of the experiment.
 
     Configures all LLMs (downstream, meta, and judge) to use
@@ -119,6 +111,9 @@ def run_evaluation(df: pd.DataFrame, config: "ExperimentConfig", prompts: List[s
     task = get_task(df, config, judge_llm=llm)
     predictor = get_predictor(llm, config=config)
     logger.warning("📊 Starting evaluation...")
+    if isinstance(prompts[0], str):
+        str_prompts = cast(List[str], prompts)
+        prompts = [Prompt(p) for p in str_prompts]
     scores = task.evaluate(prompts, predictor, eval_strategy="full")
     df = pd.DataFrame(dict(prompt=prompts, score=scores))
     df = df.sort_values("score", ascending=False, ignore_index=True)

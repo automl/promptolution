@@ -1,4 +1,4 @@
-"""Module for the FirstOccurencePredictor."""
+"""Module for the FirstOccurrencePredictor."""
 
 from typing import TYPE_CHECKING, List, Optional
 

@@ -40,7 +40,7 @@ def experiment_config():
         predictor_name="first_occurrence",
         classes=["positive", "neutral", "negative"],
         n_steps=2,
-        prepend_exemplars=False,
+        posthoc_exemplar_selection=False,
     )
 
 
@@ -55,7 +55,7 @@ def experiment_config_with_exemplars():
         predictor_name="first_occurrence",
         classes=["positive", "neutral", "negative"],
         n_steps=2,
-        prepend_exemplars=True,
+        posthoc_exemplar_selection=True,
         exemplar_selector="random",
         n_exemplars=2,
     )

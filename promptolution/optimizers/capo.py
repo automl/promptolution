@@ -1,7 +1,6 @@
 """Implementation of the CAPO (Cost-Aware Prompt Optimization) algorithm."""
 
 import random
-from itertools import compress
 
 import numpy as np
 import pandas as pd
@@ -320,8 +319,10 @@ def filter_survivors(
     Returns:
         Tuple[List[Prompt], List[List[float]]]: Filtered candidates and their scores.
     """
-    assert len(candidates) == len(mask), "Length of candidates, scores, and mask must be the same."
-    assert all(len(score) == len(mask) for score in scores), "Length of candidates, scores, and mask must be the same."
+    assert len(candidates) == len(mask), "Length of candidates, and mask must be the same."
+    assert all(
+        len(candidates) == len(score) for score in scores
+    ), "Each score list must have the same length as candidates."
 
     filtered_candidates = [c for c, m in zip(candidates, mask) if m]
     filtered_scores = [[s for s, m in zip(score, mask) if m] for score in scores]

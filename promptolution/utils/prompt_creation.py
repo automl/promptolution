@@ -52,7 +52,7 @@ def create_prompts_from_samples(
     llm: "BaseLLM",
     meta_prompt: Optional[str] = None,
     n_samples: int = 3,
-    task_description: str = None,
+    task_description: Optional[str] = None,
     n_prompts: int = 1,
     get_uniform_labels: bool = False,
 ) -> List[str]:
@@ -127,7 +127,7 @@ def create_prompts_from_task_description(
     task_description: str,
     llm: "BaseLLM",
     meta_prompt: Optional[str] = None,
-    n_prompts: int = 1,
+    n_prompts: int = 10,
 ) -> List[str]:
     """Generate a set of prompts from a given task description.
 
