@@ -1,4 +1,3 @@
-![promptolution](https://github.com/user-attachments/assets/84c050bd-61a1-4f2e-bc4e-874d9b4a69af)
 
 ![Coverage](https://img.shields.io/badge/Coverage-91%25-brightgreen)
 [![CI](https://github.com/finitearth/promptolution/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/finitearth/promptolution/actions/workflows/ci.yml)
@@ -7,104 +6,122 @@
 ![Python Versions](https://img.shields.io/badge/Python%20Versions-≥3.10-blue)
 [![Getting Started](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/finitearth/promptolution/blob/main/tutorials/getting_started.ipynb)
 
-Promptolution is a library that provides a modular and extensible framework for implementing prompt tuning for single tasks and larger experiments. It offers a user-friendly interface to assemble the core components for various prompt optimization tasks.
+![promptolution](https://github.com/user-attachments/assets/84c050bd-61a1-4f2e-bc4e-874d9b4a69af)
 
-This project was developed by [Timo Heiß](https://www.linkedin.com/in/timo-heiss/), [Moritz Schlager](https://www.linkedin.com/in/moritz-schlager/) and [Tom Zehle](https://www.linkedin.com/in/tom-zehle/) as part of a study program at LMU Munich.
 
-## Installation
 
-Use pip to install our library:
+<p align="center">
+  <img src="https://mcml.ai/images/MCML_Logo_cropped.jpg" height="45">
+  <img src="https://github.com/user-attachments/assets/1ae42b4a-163e-43ed-b691-c253d4f4c814"  height="45">
+  <img  src="https://github.com/user-attachments/assets/e70ec1d4-bbc4-4ff3-8803-8806bc879bb0"  height="45"/>
+  <img src="https://mcml.ai/images/footer/lmu_white.webp" height="45">
+  <img src="https://mcml.ai/images/footer/tum_white.webp" height="45">
+</p>
+
+
+
+## 🚀 What is Promptolution?
+
+**Promptolution** is a modular framework for *serious* prompt optimization — built for researchers who want full control over optimizers, datasets, evaluation, and logging.
+Unlike end-to-end agent frameworks (DSPy, LangGraph…), Promptolution focuses **exclusively** on the prompt optimization phase, with clean abstractions, transparent internals, and an extensible API.
+
+It supports:
+
+* single-task prompt optimization
+* large-scale experiments
+* local + API-based LLMs
+* fast parallelization
+* clean logs for reproducible research
+
+Developed by **Timo Heiß**, **Moritz Schlager**, and **Tom Zehle** (LMU Munich, MCML, ELLIS, TUM, Uni Freiburg).
+
+
+
+## 📦 Installation
 
 ```
 pip install promptolution[api]
 ```
 
-If you want to run your prompt optimization locally, either via transformers or vLLM, consider running:
+Local inference via vLLM or transformers:
 
 ```
 pip install promptolution[vllm,transformers]
 ```
 
-Alternatively, clone the repository, run
+From source:
 
 ```
+git clone https://github.com/finitearth/promptolution.git
+cd promptolution
 poetry install
 ```
 
-to install the necessary dependencies. You might need to install [pipx](https://pipx.pypa.io/stable/installation/) and [poetry](https://python-poetry.org/docs/) first.
 
-## Usage
 
-To get started right away, take a look at our [getting started notebook](https://github.com/finitearth/promptolution/blob/main/tutorials/getting_started.ipynb) and our [other demos and tutorials](https://github.com/finitearth/promptolution/blob/main/tutorials).
-For more details, a comprehensive **documentation** with API reference is availabe at https://finitearth.github.io/promptolution/.
+## 🔧 Quickstart
 
-### Featured Optimizers
+Start with the **Getting Started tutorial**:
+[https://github.com/finitearth/promptolution/blob/main/tutorials/getting_started.ipynb](https://github.com/finitearth/promptolution/blob/main/tutorials/getting_started.ipynb)
 
-|   **Name**    |                    **Paper**                     | **init prompts** | **Exploration** | **Costs**  | **Parallelizable** | **Utilizes Fewshot Examples** |
-| :-----------: | :----------------------------------------------: | :--------------: | :-------------: | :-------: | :-------------------: | :---------------------------: |
-|    `CAPO`     | [Zehle et al.](https://arxiv.org/abs/2504.16005) |    _required_    |       👍        |    💲     |        ✅         |              ✅               |
-| `EvoPromptDE` |  [Guo et al.](https://arxiv.org/abs/2309.08532)  |    _required_    |       👍        |   💲💲    |               ✅         |              ❌               |
-| `EvoPromptGA` |  [Guo et al.](https://arxiv.org/abs/2309.08532)  |    _required_    |       👍        |   💲💲    |               ✅         |              ❌               |
-|    `OPRO`     | [Yang et al.](https://arxiv.org/abs/2309.03409)  |    _optional_    |       👎        |   💲💲    |                  ❌         |              ❌               |
+Full docs:
+[https://finitearth.github.io/promptolution/](https://finitearth.github.io/promptolution/)
 
-### Core Components
 
-- `Task`: Encapsulates initial prompts, dataset features, targets, and evaluation methods.
-- `Predictor`: Implements the prediction logic, interfacing between the `Task` and `LLM` components.
-- `LLM`: Unifies the process of obtaining responses from language models, whether locally hosted or accessed via API.
-- `Optimizer`: Implements prompt optimization algorithms, utilizing the other components during the optimization process.
 
-### Key Features
+## 🧠 Featured Optimizers
 
-- Modular and object-oriented design
-- Extensible architecture
-- Easy-to-use interface for assembling experiments
-- Parallelized LLM requests for improved efficiency
-- Integration with langchain for standardized LLM API calls
-- Detailed logging and callback system for optimization analysis
+| **Name**      | **Paper**                                              | **Init prompts** | **Exploration** | **Costs** | **Parallelizable** | **Few-shot** |
+| ---- | ---- | ---- |----  |----  |  ----|----  |
+| `CAPO`        | [Zehle et al., 2025](https://arxiv.org/abs/2504.16005) | required         | 👍              | 💲        | ✅                  | ✅            |
+| `EvoPromptDE` | [Guo et al., 2023](https://arxiv.org/abs/2309.08532)   | required         | 👍              | 💲💲      | ✅                  | ❌            |
+| `EvoPromptGA` | [Guo et al., 2023](https://arxiv.org/abs/2309.08532)   | required         | 👍              | 💲💲      | ✅                  | ❌            |
+| `OPRO`        | [Yang et al., 2023](https://arxiv.org/abs/2309.03409)  | optional         | 👎              | 💲💲      | ❌                  | ❌            |
 
-## Changelog
 
-Release notes for each version of the library can be found [here](https://finitearth.github.io/promptolution/release-notes/)
 
-## Contributing
+## 🏗 Core Components
 
-The first step to contributing is to open an issue describing the bug, feature, or enhancements. Ensure the issue is clearly described, assigned, and properly tagged. All work should be linked to an open issue.
+* **Task** – wraps dataset fields, init prompts, evaluation.
+* **Predictor** – runs predictions using your LLM backend.
+* **LLM** – unified interface for OpenAI, HuggingFace, vLLM, etc.
+* **Optimizer** – plug-and-play implementations of CAPO, GA/DE, OPRO, and your own custom ones.
 
-### Code Style and Linting
 
-We use Black for code formatting, Flake8 for linting, pydocstyle for docstring conventions (Google format), and isort to sort imports. All these checks are enforced via pre-commit hooks, which automatically run on every commit. Install the pre-commit hooks to ensure that all checks run automatically:
+
+## ⭐ Highlights
+
+* Modular, OOP design → easy customization
+* Experiment-ready architecture
+* Parallel LLM requests
+* LangChain support
+* JSONL logging, callbacks, detailed event traces
+* Works from laptop to cluster
+
+
+
+## 📜 Changelog
+
+[https://finitearth.github.io/promptolution/release-notes/](https://finitearth.github.io/promptolution/release-notes/)
+
+
+
+## 🤝 Contributing
+
+Open an issue → create a branch → PR → CI → review → merge.
+Branch naming: `feature/...`, `fix/...`, `chore/...`, `refactor/...`.
+
+### Code Style
 
 ```
 pre-commit install
-```
-
-To run all checks manually:
-
-```
 pre-commit run --all-files
 ```
 
-### Branch Protection and Merging Guidelines
-
-- The main branch is protected. No direct commits are allowed for non-administrators.
-- Rebase your branch on main before opening a pull request.
-- All contributions must be made on dedicated branches linked to specific issues.
-- Name the branch according to {prefix}/{description} with one of the prefixes fix, feature, chore, or refactor.
-- A pull request must have at least one approval from a code owner before it can be merged into main.
-- CI checks must pass before a pull request can be merged.
-- New releases will only be created by code owners.
-
-### Testing
-
-We use pytest to run tests, and coverage to track code coverage. Tests automatically run on pull requests and pushes to the main branch, but please ensure they also pass locally before pushing!
-To run the tests with coverage locally, use the following commands or your IDE's test runner:
+### Tests
 
 ```
 poetry run python -m coverage run -m pytest
-```
-
-To see the coverage report run:
-```
 poetry run python -m coverage report
 ```
+Just tell me — happy to tune it further.
