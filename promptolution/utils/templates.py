@@ -144,7 +144,7 @@ Task: <task_desc>
 
 Explicitly state the expected format above by repeating its exact character sequence verbatim in every prompt if applicable.
 
-Create overall <n_prompts> prompts within json format, meaning strings inside quotes as an array. Do not response with anything else. Start the array with [ and end with ]. Separate each prompt by a comma, and do not use quotation marks inside the prompts."""
+Create overall <n_prompts> prompts within json format, meaning strings inside quotations marks ("") as an array. Do not response with anything else. Start the array with [ and end with ]. Separate each prompt by a comma, and do not use quotation marks inside the prompts."""
 
 
 DOWNSTREAM_TEMPLATE = "<instruction>"
