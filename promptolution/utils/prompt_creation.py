@@ -7,6 +7,7 @@ import numpy as np
 from typing import TYPE_CHECKING, List, Optional, Union
 
 from promptolution.utils.formatting import extract_from_tag
+from promptolution.utils.logging import get_logger
 
 if TYPE_CHECKING:  # pragma: no cover
     from promptolution.llms.base_llm import BaseLLM
@@ -18,7 +19,10 @@ from promptolution.utils.templates import (
     PROMPT_CREATION_TEMPLATE_FROM_TASK_DESCRIPTION,
     PROMPT_CREATION_TEMPLATE_TD,
     PROMPT_VARIATION_TEMPLATE,
+    default_prompts,
 )
+
+logger = get_logger(__name__)
 
 
 def create_prompt_variation(
@@ -128,6 +132,7 @@ def create_prompts_from_task_description(
     llm: "BaseLLM",
     meta_prompt: Optional[str] = None,
     n_prompts: int = 10,
+    n_retries: int = 3,
 ) -> List[str]:
     """Generate a set of prompts from a given task description.
 
@@ -137,13 +142,27 @@ def create_prompts_from_task_description(
         meta_prompt (str): The meta prompt to use for generating the prompts.
             If None, a default meta prompt is used.
         n_prompts (int): The number of prompts to generate.
+        n_retries (int): The number of retries to attempt if prompt generation fails.
     """
     if meta_prompt is None:
         meta_prompt = PROMPT_CREATION_TEMPLATE_FROM_TASK_DESCRIPTION
 
     meta_prompt = meta_prompt.replace("<task_desc>", task_description).replace("<n_prompts>", str(n_prompts))
+    final_prompts = None
+    for _ in range(n_retries):
+        prompts_str = llm.get_response(meta_prompt)[0]
+        try:
+            prompts = json.loads(prompts_str)
+            assert isinstance(prompts, list) and all(isinstance(p, str) for p in prompts) and len(prompts) == n_prompts
+            final_prompts = prompts
+            break
+        except (json.JSONDecodeError, AssertionError):
+            logger.warning("Failed to parse prompts JSON, retrying...")
 
-    prompts_str = llm.get_response(meta_prompt)[0]
-    prompts = json.loads(prompts_str)
+    if final_prompts is None:
+        logger.error(
+            f"Failed to generate prompts from task description after {n_retries} retries, returning default prompts."
+        )
+        final_prompts = default_prompts[:n_prompts]
 
-    return prompts
+    return final_prompts

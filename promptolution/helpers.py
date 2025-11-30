@@ -122,8 +122,10 @@ def run_evaluation(
     if isinstance(prompts[0], str):
         str_prompts = cast(List[str], prompts)
         prompts = [Prompt(p) for p in str_prompts]
+    else:
+        str_prompts = [p.construct_prompt() for p in cast(List[Prompt], prompts)]
     scores = task.evaluate(prompts, predictor, eval_strategy="full")
-    df = pd.DataFrame(dict(prompt=prompts, score=scores))
+    df = pd.DataFrame(dict(prompt=str_prompts, score=scores))
     df = df.sort_values("score", ascending=False, ignore_index=True)
 
     return df

@@ -197,6 +197,8 @@ def test_run_evaluation(mock_get_task, mock_get_predictor, mock_get_llm, sample_
         "Is this text positive, negative, or neutral?",
     ]
 
+    prompts = [Prompt(p) for p in prompts]
+
     # Now this will work because mock_task is a MagicMock
     mock_task.evaluate.return_value = np.array([0.8, 0.7, 0.9])
 
@@ -298,6 +300,7 @@ def test_helpers_integration(sample_df, experiment_config):
         # Verify results
         assert isinstance(result, pd.DataFrame)
         assert len(result) == 2
+        print([p in result["prompt"].values for p in optimized_prompts_str])
         assert all(p in result["prompt"].values for p in optimized_prompts_str)
 
         # Verify optimization was called

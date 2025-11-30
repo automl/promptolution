@@ -174,3 +174,31 @@ Prompt: <instruction>
 
 Return the new prompt in the following format:
 <prompt>new prompt</prompt>"""
+
+
+default_prompts = [
+    "Give me your response within <final_answer> tags.",
+    "Please provide a thoughtful answer to my question and wrap your response in <final_answer> tags so I can easily identify it.",
+    "I need your expertise on this matter. Kindly structure your response within <final_answer> tags for better readability.",
+    "Analyze the following and present your findings enclosed in <final_answer> </final_answer> tags.",
+    "Consider this inquiry carefully. Your comprehensive response should be formatted within <final_answer> tags to facilitate extraction.",
+    "Respond succinctly. Ensure all content appears between <final_answer> and </final_answer> markers.",
+    "Would you mind addressing this request? Please place your entire response inside <final_answer> </final_answer> formatting.",
+    "I'm seeking your insights on a particular topic. Kindly ensure that your complete analysis is contained within <final_answer> tags for my convenience.",
+    "Examine this query thoroughly and deliver your conclusions. All output must be encapsulated in <final_answer> </final_answer> notation for processing purposes.",
+    "Help me understand this subject better. Your explanation should begin with <final_answer> and conclude with </final_answer> to maintain proper structure.",
+    "I require information on the following. Please format your response with <final_answer> tags at the beginning and end for clarity.",
+    "Contemplate this scenario and offer your perspective. Remember to enclose all content within <final_answer> tags as per requirements.",
+    "Elaborate on this concept, making sure to wrap the entirety of your explanation in <final_answer> </final_answer> markers for systematic review.",
+    "Describe your approach to this situation. Be thorough yet concise, and place your complete response between <final_answer> and </final_answer> tags.",
+    "Share your knowledge on this matter. Your entire response should be presented within <final_answer> tags to facilitate proper integration into my workflow.",
+    "Let's think step by step. Your answer should be enclosed within <final_answer> </final_answer> tags.",
+    "Provide a detailed response to the following question, ensuring that all information is contained within <final_answer> tags for easy extraction.",
+    "Kindly address the following topic, formatting your entire response between <final_answer> and </final_answer> markers for clarity and organization.",
+    "Offer your insights on this issue, making sure to encapsulate your full response within <final_answer> tags for seamless processing.",
+    "Delve into this subject and present your findings, ensuring that all content is wrapped in <final_answer> </final_answer> notation for systematic analysis.",
+    "Illuminate this topic with your expertise, formatting your complete explanation within <final_answer> tags for straightforward comprehension.",
+    "Provide your perspective on this matter, ensuring that your entire response is contained within <final_answer> tags for efficient review.",
+    "Analyze the following scenario and deliver your conclusions, making sure to enclose all output in <final_answer> </final_answer> markers for clarity.",
+    "Help me grasp this concept better by structuring your explanation between <final_answer> and </final_answer> tags for proper formatting.",
+]

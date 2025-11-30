@@ -209,7 +209,7 @@ def test_capo_crossover_prompt(mock_meta_llm, mock_predictor, initial_prompts, m
         .replace("<task_desc>", full_task_desc)
     )
 
-    assert mock_meta_llm.call_history[0]["prompts"][0] == expected_meta_prompt
+    assert str(mock_meta_llm.call_history[0]["prompts"][0]) == expected_meta_prompt
 
 
 def test_capo_mutate_prompt(mock_meta_llm, mock_predictor, initial_prompts, mock_task, mock_df):
