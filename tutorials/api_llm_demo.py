@@ -14,7 +14,6 @@ from promptolution.utils import LoggerCallback
 
 logger = Logger(__name__)
 
-"""Run a test run for any of the implemented optimizers."""
 parser = argparse.ArgumentParser()
 parser.add_argument("--base-url", default="https://api.openai.com/v1")
 parser.add_argument("--model", default="gpt-4o-2024-08-06")
