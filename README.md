@@ -18,7 +18,7 @@
 
 ## 🚀 What is Promptolution?
 
-**Promptolution** is a unified, modular framework for prompt optimization — built for researchers and advanced practitioners who want full control over their experimental setup. Unlike end-to-end application frameworks with high abstraction, promptolution focuses exclusively on the optimization stage, providing a clean, transparent, and extensible API. It allows for simple prompt optimization for one task up to large-scale reproducible benchmark experiments. 
+**Promptolution** is a unified, modular framework for prompt optimization built for researchers and advanced practitioners who want full control over their experimental setup. Unlike end-to-end application frameworks with high abstraction, promptolution focuses exclusively on the optimization stage, providing a clean, transparent, and extensible API. It allows for simple prompt optimization for one task up to large-scale reproducible benchmark experiments. 
 
 <img width="808" height="356" alt="promptolution_framework" src="https://github.com/user-attachments/assets/e3d05493-30e3-4464-b0d6-1d3e3085f575" />
 
