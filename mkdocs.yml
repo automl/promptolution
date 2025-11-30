@@ -47,6 +47,7 @@ nav:
   - Home: index.md
   - Release Notes:
     - Overview: release-notes.md
+    - v2.2.0: release-notes/v2.2.0.md
     - v2.1.0: release-notes/v2.1.0.md
     - v2.0.1: release-notes/v2.0.1.md
     - v2.0.0: release-notes/v2.0.0.md
