@@ -106,6 +106,11 @@ class CAPO(BaseOptimizer):
                 f" Setting max_n_blocks_eval to {self.task.n_blocks}."
             )
             self.max_n_blocks_eval = self.task.n_blocks
+        if "block" not in self.task.eval_strategy:
+            logger.warning(
+                f"ℹ️ CAPO requires 'block' in the eval_strategy, but got {self.task.eval_strategy}. Setting eval_strategy to 'sequential_block'."
+            )
+            self.task.eval_strategy = "sequential_block"
         self.population_size = len(self.prompts)
 
         if hasattr(self.predictor, "begin_marker") and hasattr(self.predictor, "end_marker"):
