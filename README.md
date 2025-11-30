@@ -11,10 +11,10 @@
 
 
 <p align="center">
+  <img src="https://mcml.ai/images/footer/lmu_white.webp" height="40">
   <img src="https://github.com/user-attachments/assets/41edb678-16c4-4a3a-a579-62459106cf48" height="40">
   <img src="https://github.com/user-attachments/assets/1ae42b4a-163e-43ed-b691-c253d4f4c814"  height="40">
   <img  src="https://github.com/user-attachments/assets/d6977ca8-7b52-4714-83d7-610743c7d52c"  height="40"/>
-  <img src="https://mcml.ai/images/footer/lmu_white.webp" height="40">
   <img src="https://mcml.ai/images/footer/tum_white.webp" height="40">
 </p>
 
