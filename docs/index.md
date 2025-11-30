@@ -29,5 +29,6 @@ Or clone our GitHub repository:
 - [Optimizers](api/optimizers.md)
 - [Predictors](api/predictors.md)
 - [Tasks](api/tasks.md)
-- [Callbacks](api/callbacks.md)
-- [Config](api/config.md)
+- [Helpers](api/helpers.md)
+- [Utils](api/utils.md)
+- [Exemplar Selectors](api/examplar_selectors.md)
