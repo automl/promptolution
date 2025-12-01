@@ -1,10 +1,10 @@
 
 ![Coverage](https://img.shields.io/badge/Coverage-91%25-brightgreen)
-[![CI](https://github.com/finitearth/promptolution/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/finitearth/promptolution/actions/workflows/ci.yml)
-[![Docs](https://github.com/finitearth/promptolution/actions/workflows/docs.yml/badge.svg?branch=main)](https://github.com/finitearth/promptolution/actions/workflows/docs.yml)
+[![CI](https://github.com/automl/promptolution/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/automl/promptolution/actions/workflows/ci.yml)
+[![Docs](https://github.com/automl/promptolution/actions/workflows/docs.yml/badge.svg?branch=main)](https://github.com/automl/promptolution/actions/workflows/docs.yml)
 ![Code Style](https://img.shields.io/badge/Code%20Style-black-black)
 ![Python Versions](https://img.shields.io/badge/Python%20Versions-≥3.10-blue)
-[![Getting Started](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/finitearth/promptolution/blob/main/tutorials/getting_started.ipynb)
+[![Getting Started](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/automl/promptolution/blob/main/tutorials/getting_started.ipynb)
 
 ![promptolution](https://github.com/user-attachments/assets/84c050bd-61a1-4f2e-bc4e-874d9b4a69af)
 
@@ -29,7 +29,7 @@
 * Built-in response caching to save costs and parallelized inference for speed.
 * Detailed logging and token usage tracking for granular post-hoc analysis.
 
-Have a look at our [Release Notes](https://finitearth.github.io/promptolution/release-notes/) for the latest updates to promptolution.
+Have a look at our [Release Notes](https://automl.github.io/promptolution/release-notes/) for the latest updates to promptolution.
 
 ## 📦 Installation
 
@@ -46,7 +46,7 @@ pip install promptolution[vllm,transformers]
 From source:
 
 ```
-git clone https://github.com/finitearth/promptolution.git
+git clone https://github.com/automl/promptolution.git
 cd promptolution
 poetry install
 ```
@@ -54,20 +54,20 @@ poetry install
 ## 🔧 Quickstart
 
 Start with the **Getting Started tutorial**:
-[https://github.com/finitearth/promptolution/blob/main/tutorials/getting_started.ipynb](https://github.com/finitearth/promptolution/blob/main/tutorials/getting_started.ipynb)
+[https://github.com/automl/promptolution/blob/main/tutorials/getting_started.ipynb](https://github.com/automl/promptolution/blob/main/tutorials/getting_started.ipynb)
 
 Full docs:
-[https://finitearth.github.io/promptolution/](https://finitearth.github.io/promptolution/)
+[https://automl.github.io/promptolution/](https://automl.github.io/promptolution/)
 
 
 ## 🧠 Featured Optimizers
 
 | **Name**      | **Paper**                                              | **Init prompts** | **Exploration** | **Costs** | **Parallelizable** | **Few-shot** |
 | ---- | ---- | ---- |----  |----  |  ----|----  |
-| `CAPO`        | [Zehle et al., 2025](https://arxiv.org/abs/2504.16005) | required         | 👍              | 💲        | ✅                  | ✅            |
-| `EvoPromptDE` | [Guo et al., 2023](https://arxiv.org/abs/2309.08532)   | required         | 👍              | 💲💲      | ✅                  | ❌            |
-| `EvoPromptGA` | [Guo et al., 2023](https://arxiv.org/abs/2309.08532)   | required         | 👍              | 💲💲      | ✅                  | ❌            |
-| `OPRO`        | [Yang et al., 2023](https://arxiv.org/abs/2309.03409)  | optional         | 👎              | 💲💲      | ❌                  | ❌            |
+| `CAPO`        | [Zehle et al., 2025](https://openreview.net/forum?id=UweaRrg9D0) | required         | 👍              | 💲        | ✅                  | ✅            |
+| `EvoPromptDE` | [Guo et al., 2023](https://openreview.net/forum?id=ZG3RaNIsO8)   | required         | 👍              | 💲💲      | ✅                  | ❌            |
+| `EvoPromptGA` | [Guo et al., 2023](https://openreview.net/forum?id=ZG3RaNIsO8)   | required         | 👍              | 💲💲      | ✅                  | ❌            |
+| `OPRO`        | [Yang et al., 2023](https://openreview.net/forum?id=Bb4VGOWELI)  | optional         | 👎              | 💲💲      | ❌                  | ❌            |
 
 ## 🏗 Components
 
