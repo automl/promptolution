@@ -111,6 +111,7 @@ class Capoeira(BaseOptimizer):
             population.append(Prompt(prompt.instruction, few_shots))
 
         self.prompts = population
+        # TODO: align placement of the logic with capo
         self.max_prompt_length = max(self.token_counter(p.construct_prompt()) for p in self.prompts) if self.prompts else 1
         initial_vectors = self._evaluate_candidates(self.prompts)
         self.prompts, selected_vectors = self._select_population(self.prompts, initial_vectors)

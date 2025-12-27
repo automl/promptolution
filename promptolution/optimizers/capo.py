@@ -16,7 +16,6 @@ if TYPE_CHECKING:  # pragma: no cover
     from promptolution.utils.test_statistics import TestStatistics
 
 from promptolution.optimizers.base_optimizer import BaseOptimizer
-from promptolution.utils.formatting import extract_from_tag
 from promptolution.utils.capo_utils import build_few_shot_examples, perform_crossover, perform_mutation
 from promptolution.utils.logging import get_logger
 from promptolution.utils.prompt import Prompt, sort_prompts_by_scores
