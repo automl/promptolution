@@ -9,6 +9,12 @@ import pandas as pd
 from typing import TYPE_CHECKING, Dict, List, Literal, Optional, Tuple, Union, overload
 
 from promptolution.utils.prompt import Prompt
+from promptolution.utils.token_counter import get_token_counter
+from promptolution.utils.logging import get_logger
+
+logger = get_logger(__name__)
+
+logger = get_logger(__name__)
 
 if TYPE_CHECKING:  # pragma: no cover
     from promptolution.predictors.base_predictor import BasePredictor
@@ -247,7 +253,13 @@ class BaseTask(ABC):
         return_agg_scores: bool = True,
         return_seq: bool = False,
         eval_strategy: Optional["EvalStrategy"] = None,
-    ) -> Union[List[float], List[List[float]], Tuple[List[List[float]], List[List[str]]]]:
+        return_costs: bool = False,
+    ) -> Union[
+        List[float],
+        List[List[float]],
+        Tuple[List[List[float]], List[List[str]]],
+        Tuple[List[float], List[float], List[float]],
+    ]:
         """Evaluate a set of prompts using a given predictor.
 
         This method orchestrates subsampling, prediction, caching, and result collection.
@@ -255,8 +267,10 @@ class BaseTask(ABC):
         Note: Cannot return both aggregated scores and sequences (assertion will fail).
         """
         assert not (return_agg_scores and return_seq), "Cannot return both aggregated scores and sequences"
+        assert not return_seq or not return_costs, "Token cost reporting is not supported together with sequences."
 
         seqs: List[str] = []
+        token_counter = get_token_counter(predictor.llm) if return_costs else None
 
         prompts = [prompts] if isinstance(prompts, Prompt) else prompts
         eval_strategy = eval_strategy or self.eval_strategy
@@ -285,13 +299,49 @@ class BaseTask(ABC):
             if return_seq:
                 self.seq_cache[cache_key] = seqs[i]
 
-        return self._collect_results_from_cache(
+        agg_scores = self._collect_results_from_cache(
             prompts,
             xs,
             ys,
             return_agg_scores,
             return_seq,
         )
+
+        if not return_costs:
+            return agg_scores
+
+        per_prompt_inputs: List[float] = []
+        per_prompt_outputs: List[float] = []
+
+        if token_counter is None:
+            logger.warning("⚠️ Token counting unavailable; returning zero costs.")
+            per_prompt_inputs = [0.0 for _ in prompts]
+            per_prompt_outputs = [0.0 for _ in prompts]
+            return agg_scores, per_prompt_inputs, per_prompt_outputs
+
+        preds_by_prompt: List[List[str]] = []
+        if isinstance(preds, list):
+            if preds and isinstance(preds[0], list):
+                preds_by_prompt = preds  # type: ignore[assignment]
+            elif preds and isinstance(preds[0], str):
+                preds_by_prompt = [preds for _ in prompts]
+
+        xs_token_mean = float(np.mean([token_counter(x) for x in xs])) if xs else 0.0
+
+        for idx, prompt in enumerate(prompts):
+            prompt_tokens = token_counter(prompt.construct_prompt())
+            input_tokens = prompt_tokens + xs_token_mean
+
+            if preds_by_prompt and idx < len(preds_by_prompt) and preds_by_prompt[idx]:
+                avg_output = float(np.mean([token_counter(p) for p in preds_by_prompt[idx]]))
+            else:
+                avg_output = 0.0
+                logger.warning("⚠️ Unable to estimate output tokens; defaulting to 0.")
+
+            per_prompt_inputs.append(input_tokens)
+            per_prompt_outputs.append(avg_output)
+
+        return agg_scores, per_prompt_inputs, per_prompt_outputs
 
     def pop_datapoints(self, n: Optional[int] = None, frac: Optional[float] = None) -> pd.DataFrame:
         """Pop a number of datapoints from the dataset.

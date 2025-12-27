@@ -26,6 +26,7 @@ from promptolution.llms.api_llm import APILLM
 from promptolution.llms.local_llm import LocalLLM
 from promptolution.llms.vllm import VLLM
 from promptolution.optimizers.capo import CAPO
+from promptolution.optimizers.capoeira import Capoeira
 from promptolution.optimizers.evoprompt_de import EvoPromptDE
 from promptolution.optimizers.evoprompt_ga import EvoPromptGA
 from promptolution.optimizers.opro import OPRO
@@ -79,8 +80,8 @@ def run_optimization(df: pd.DataFrame, config: "ExperimentConfig") -> List[Promp
         )
         config.prompts = [Prompt(p) for p in initial_prompts]
 
-    if config.optimizer == "capo" and (config.eval_strategy is None or "block" not in config.eval_strategy):
-        logger.warning("📌 CAPO requires block evaluation strategy. Setting it to 'sequential_block'.")
+    if config.optimizer in {"capo", "capoeira"} and (config.eval_strategy is None or "block" not in config.eval_strategy):
+        logger.warning("📌 CAPO-style optimizers require block evaluation strategy. Setting it to 'sequential_block'.")
         config.eval_strategy = "sequential_block"
 
     task = get_task(df, config, judge_llm=llm)
@@ -232,6 +233,14 @@ def get_optimizer(
 
     if final_optimizer == "capo":
         return CAPO(
+            predictor=predictor,
+            meta_llm=meta_llm,
+            task=task,
+            config=config,
+        )
+
+    if final_optimizer == "capoeira":
+        return Capoeira(
             predictor=predictor,
             meta_llm=meta_llm,
             task=task,

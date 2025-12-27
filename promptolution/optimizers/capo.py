@@ -17,6 +17,7 @@ if TYPE_CHECKING:  # pragma: no cover
 
 from promptolution.optimizers.base_optimizer import BaseOptimizer
 from promptolution.utils.formatting import extract_from_tag
+from promptolution.utils.capo_utils import build_few_shot_examples, perform_crossover, perform_mutation
 from promptolution.utils.logging import get_logger
 from promptolution.utils.prompt import Prompt, sort_prompts_by_scores
 from promptolution.utils.templates import CAPO_CROSSOVER_TEMPLATE, CAPO_FEWSHOT_TEMPLATE, CAPO_MUTATION_TEMPLATE
@@ -121,127 +122,26 @@ class CAPO(BaseOptimizer):
             self.target_end_marker = ""
 
     def _initialize_population(self, initial_prompts: List[Prompt]) -> List[Prompt]:
-        """Initializes the population of Prompt objects from initial instructions.
-
-        Args:
-            initial_prompts (List[str]): List of initial prompt instructions.
-
-        Returns:
-            List[Prompt]: Initialized population of prompts with few-shot examples.
-        """
+        """Initializes the population of Prompt objects from initial instructions."""
         population = []
         for prompt in initial_prompts:
             num_examples = random.randint(0, self.upper_shots)
-            few_shots = self._create_few_shot_examples(prompt.instruction, num_examples)
+            few_shots = build_few_shot_examples(
+                instruction=prompt.instruction,
+                num_examples=num_examples,
+                df_few_shots=self.df_few_shots,
+                x_column=self.task.x_column,
+                y_column=self.task.y_column,
+                predictor=self.predictor,
+                fewshot_template=CAPO_FEWSHOT_TEMPLATE,
+                target_begin_marker=self.target_begin_marker,
+                target_end_marker=self.target_end_marker,
+                check_fs_accuracy=self.check_fs_accuracy,
+                create_fs_reasoning=self.create_fs_reasoning,
+            )
             population.append(Prompt(prompt.instruction, few_shots))
 
         return population
-
-    def _create_few_shot_examples(self, instruction: str, num_examples: int) -> List[str]:
-        if num_examples == 0:
-            return []
-
-        few_shot_samples = self.df_few_shots.sample(num_examples, replace=False)
-        sample_inputs = few_shot_samples[self.task.x_column].values.astype(str)
-        sample_targets = few_shot_samples[self.task.y_column].values
-        few_shots = [
-            CAPO_FEWSHOT_TEMPLATE.replace("<input>", i).replace(
-                "<output>", f"{self.target_begin_marker}{t}{self.target_end_marker}"
-            )
-            for i, t in zip(sample_inputs, sample_targets)
-        ]
-
-        if not self.create_fs_reasoning:
-            # If we do not create reasoning, return the few-shot examples directly
-            return few_shots
-
-        preds, seqs = self.predictor.predict(
-            [instruction] * num_examples,
-            list(sample_inputs),
-            return_seq=True,
-        )
-        if isinstance(seqs, str):
-            seqs = [seqs]
-        if isinstance(preds, str):
-            preds = [preds]
-
-        # Check which predictions are correct and get a single one per example
-        for j in range(num_examples):
-            # Process and clean up the generated sequences
-            seqs[j] = seqs[j].replace(sample_inputs[j], "", 1).strip()
-            # Check if the prediction is correct and add reasoning if so
-            if preds[j] == sample_targets[j] or not self.check_fs_accuracy:
-                few_shots[j] = CAPO_FEWSHOT_TEMPLATE.replace("<input>", sample_inputs[j]).replace("<output>", seqs[j])
-
-        return few_shots
-
-    def _crossover(self, parents: List[Prompt]) -> List[Prompt]:
-        """Performs crossover among parent prompts to generate offsprings.
-
-        Args:
-            parents (List[Prompt]): List of parent prompts.
-
-        Returns:
-            List[Prompt]: List of new offsprings after crossover.
-        """
-        crossover_prompts = []
-        offspring_few_shots = []
-        for _ in range(self.crossovers_per_iter):
-            mother, father = random.sample(parents, 2)
-            crossover_prompt = (
-                self.crossover_template.replace("<mother>", mother.instruction)
-                .replace("<father>", father.instruction)
-                .strip()
-            )
-            # collect all crossover prompts then pass them bundled to the meta llm (speedup)
-            crossover_prompts.append(crossover_prompt)
-            combined_few_shots = mother.few_shots + father.few_shots
-            num_few_shots = (len(mother.few_shots) + len(father.few_shots)) // 2
-            offspring_few_shot = random.sample(combined_few_shots, num_few_shots) if combined_few_shots else []
-            offspring_few_shots.append(offspring_few_shot)
-
-        child_instructions = self.meta_llm.get_response(crossover_prompts)
-
-        offsprings = []
-        for instruction, examples in zip(child_instructions, offspring_few_shots):
-            instruction = extract_from_tag(instruction, "<prompt>", "</prompt>")
-            offsprings.append(Prompt(instruction, examples))
-
-        return offsprings
-
-    def _mutate(self, offsprings: List[Prompt]) -> List[Prompt]:
-        """Apply mutation to offsprings to generate new candidate prompts.
-
-        Args:
-            offsprings (List[Prompt]): List of offsprings to mutate.
-
-        Returns:
-            List[Prompt]: List of mutated prompts.
-        """
-        # collect all mutation prompts then pass them bundled to the meta llm (speedup)
-        mutation_prompts = [
-            self.mutation_template.replace("<instruction>", prompt.instruction) for prompt in offsprings
-        ]
-        new_instructions = self.meta_llm.get_response(mutation_prompts)
-
-        mutated = []
-        for new_instruction, prompt in zip(new_instructions, offsprings):
-            new_instruction = extract_from_tag(new_instruction, "<prompt>", "</prompt>")
-            p = random.random()
-
-            new_few_shots: List[str]
-            if p < 1 / 3 and len(prompt.few_shots) < self.upper_shots:  # add a random few shot
-                new_few_shot = self._create_few_shot_examples(new_instruction, 1)
-                new_few_shots = prompt.few_shots + new_few_shot
-            elif 1 / 3 <= p < 2 / 3 and len(prompt.few_shots) > 0:  # remove a random few shot
-                new_few_shots = random.sample(prompt.few_shots, len(prompt.few_shots) - 1)
-            else:  # do not change few shots, but shuffle
-                new_few_shots = prompt.few_shots
-
-            random.shuffle(new_few_shots)
-            mutated.append(Prompt(new_instruction, new_few_shots))
-
-        return mutated
 
     def _do_racing(self, candidates: List[Prompt], k: int) -> Tuple[List[Prompt], List[float]]:
         """Perform the racing (selection) phase by comparing candidates based on their evaluation scores using the provided test statistic.
@@ -297,13 +197,25 @@ class CAPO(BaseOptimizer):
         self.task.reset_block_idx()
 
     def _step(self) -> List[Prompt]:
-        """Perform a single optimization step.
-
-        Returns:
-            List[Prompt]: The optimized list of prompts after the step.
-        """
-        offsprings = self._crossover(self.prompts)
-        mutated = self._mutate(offsprings)
+        """Perform a single optimization step."""
+        offsprings = perform_crossover(self.prompts, self.crossovers_per_iter, self.crossover_template, self.meta_llm)
+        mutated = perform_mutation(
+            offsprings=offsprings,
+            mutation_template=self.mutation_template,
+            upper_shots=self.upper_shots,
+            meta_llm=self.meta_llm,
+            few_shot_kwargs=dict(
+                df_few_shots=self.df_few_shots,
+                x_column=self.task.x_column,
+                y_column=self.task.y_column,
+                predictor=self.predictor,
+                fewshot_template=CAPO_FEWSHOT_TEMPLATE,
+                target_begin_marker=self.target_begin_marker,
+                target_end_marker=self.target_end_marker,
+                check_fs_accuracy=self.check_fs_accuracy,
+                create_fs_reasoning=self.create_fs_reasoning,
+            ),
+        )
         combined = self.prompts + mutated
 
         self.prompts, self.scores = self._do_racing(combined, self.population_size)

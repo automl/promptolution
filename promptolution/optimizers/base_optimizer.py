@@ -15,7 +15,7 @@ from promptolution.utils.prompt import Prompt
 
 logger = get_logger(__name__)
 
-OptimizerType = Literal["evopromptde", "evopromptga", "opro", "capo"]
+OptimizerType = Literal["evopromptde", "evopromptga", "opro", "capo", "capoeira"]
 
 
 class BaseOptimizer(ABC):
