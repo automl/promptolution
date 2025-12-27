@@ -80,7 +80,9 @@ def run_optimization(df: pd.DataFrame, config: "ExperimentConfig") -> List[Promp
         )
         config.prompts = [Prompt(p) for p in initial_prompts]
 
-    if config.optimizer in {"capo", "capoeira"} and (config.eval_strategy is None or "block" not in config.eval_strategy):
+    if config.optimizer in {"capo", "capoeira"} and (
+        config.eval_strategy is None or "block" not in config.eval_strategy
+    ):
         logger.warning("📌 CAPO-style optimizers require block evaluation strategy. Setting it to 'sequential_block'.")
         config.eval_strategy = "sequential_block"
 
@@ -133,7 +135,7 @@ def run_evaluation(
 
 
 def get_llm(model_id: Optional[str] = None, config: Optional["ExperimentConfig"] = None) -> "BaseLLM":
-    """Factory function to create and return a language model instance based on the provided model_id.
+    """Create and return a language model instance based on the provided model_id.
 
     This function supports three types of language models:
     1. LocalLLM: For running models locally.
@@ -208,7 +210,7 @@ def get_optimizer(
     task_description: Optional[str] = None,
     config: Optional["ExperimentConfig"] = None,
 ) -> "BaseOptimizer":
-    """Creates and returns an optimizer instance based on provided parameters.
+    """Create and return an optimizer instance based on provided parameters.
 
     Args:
         predictor: The predictor used for prompt evaluation
@@ -262,7 +264,7 @@ def get_optimizer(
 def get_exemplar_selector(
     name: Literal["random", "random_search"], task: "BaseTask", predictor: "BasePredictor"
 ) -> "BaseExemplarSelector":
-    """Factory function to get an exemplar selector based on the given name.
+    """Get an exemplar selector based on the given name.
 
     Args:
         name (str): The name of the exemplar selector to instantiate.
@@ -284,7 +286,7 @@ def get_exemplar_selector(
 
 
 def get_predictor(downstream_llm=None, type: "PredictorType" = "marker", *args, **kwargs) -> "BasePredictor":
-    """Factory function to create and return a predictor instance.
+    """Create and return a predictor instance.
 
     This function supports three types of predictors:
     1. FirstOccurrencePredictor: A predictor that classifies based on first occurrence of the label.

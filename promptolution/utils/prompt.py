@@ -6,12 +6,12 @@ from promptolution.utils.templates import DOWNSTREAM_TEMPLATE, DOWNSTREAM_TEMPLA
 
 
 class Prompt:
-    """Represents a prompt consisting of an instruction and few-shot examples."""
+    """Represent a prompt consisting of an instruction and few-shot examples."""
 
     def __init__(
         self, instruction: str, few_shots: Optional[List[str]] = None, downstream_template: Optional[str] = None
     ) -> None:
-        """Initializes the Prompt with an instruction and associated examples.
+        """Initialize the Prompt with an instruction and associated examples.
 
         Args:
             instruction (str): The instruction or prompt text.
@@ -28,7 +28,7 @@ class Prompt:
         self.downstream_template = downstream_template
 
     def construct_prompt(self) -> str:
-        """Constructs the full prompt string by replacing placeholders in the template with the instruction and formatted examples.
+        """Construct the full prompt string by replacing placeholders in the template with the instruction and formatted examples.
 
         Returns:
             str: The constructed prompt string.
@@ -43,7 +43,7 @@ class Prompt:
         return prompt
 
     def __str__(self) -> str:
-        """Returns the string representation of the prompt."""
+        """Return the string representation of the prompt."""
         return self.construct_prompt()
 
 

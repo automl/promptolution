@@ -34,7 +34,7 @@ class BaseCallback(ABC):
         pass
 
     def on_step_end(self, optimizer: "BaseOptimizer") -> bool:
-        """Called at the end of each optimization step.
+        """Call at the end of each optimization step.
 
         Args:
             optimizer: The optimizer object that called the callback.
@@ -45,7 +45,7 @@ class BaseCallback(ABC):
         return True
 
     def on_epoch_end(self, optimizer: "BaseOptimizer") -> bool:
-        """Called at the end of each optimization epoch.
+        """Call at the end of each optimization epoch.
 
         Args:
             optimizer: The optimizer object that called the callback.
@@ -56,7 +56,7 @@ class BaseCallback(ABC):
         return True
 
     def on_train_end(self, optimizer: "BaseOptimizer") -> bool:
-        """Called at the end of the entire optimization process.
+        """Call at the end of the entire optimization process.
 
         Args:
             optimizer: The optimizer object that called the callback.

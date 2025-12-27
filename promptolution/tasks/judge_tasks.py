@@ -112,7 +112,7 @@ class JudgeTask(BaseTask):
         self.judge_llm = judge_llm
 
     def _construct_judge_prompt(self, x: str, pred: str, y: Optional[str] = None) -> str:
-        """Constructs the judge prompt based on whether ground truth is available."""
+        """Construct the judge prompt based on whether ground truth is available."""
         if y is not None:
             prompt = self.judge_prompt.replace("{ground_truth}", str(y))
         else:

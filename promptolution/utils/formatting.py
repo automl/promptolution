@@ -13,7 +13,7 @@ def extract_from_tag(text: List[str], start_tag: str, end_tag: str) -> List[str]
 
 
 def extract_from_tag(text: Union[str, List[str]], start_tag: str, end_tag: str) -> Union[List[str], str]:
-    """Extracts content from a string between specified start and end tags.
+    """Extract content from a string between specified start and end tags.
 
     Args:
         text (str): The input text to extract from.

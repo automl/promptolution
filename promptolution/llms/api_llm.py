@@ -210,7 +210,7 @@ class APILLM(BaseLLM):
         return asyncio.run_coroutine_threadsafe(coro, self._loop)
 
     def _get_response(self, prompts: List[str], system_prompts: List[str]) -> List[str]:
-        """Synchronously obtain responses for a batch of prompts.
+        """Obtain responses synchronously for a batch of prompts.
 
         This is the main entrypoint used by external callers. It handles system
         prompt broadcasting and delegates the actual work to the async batch

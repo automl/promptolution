@@ -55,7 +55,7 @@ class CAPO(BaseOptimizer):
         callbacks: Optional[List["BaseCallback"]] = None,
         config: Optional["ExperimentConfig"] = None,
     ) -> None:
-        """Initializes the CAPOptimizer with various parameters for prompt evolution.
+        """Initialize the CAPOptimizer with various parameters for prompt evolution.
 
         Args:
             predictor (BasePredictor): The predictor for evaluating prompt performance.
@@ -114,14 +114,14 @@ class CAPO(BaseOptimizer):
         self.population_size = len(self.prompts)
 
         if hasattr(self.predictor, "begin_marker") and hasattr(self.predictor, "end_marker"):
-            self.target_begin_marker = self.predictor.begin_marker # type: ignore
-            self.target_end_marker = self.predictor.end_marker # type: ignore
+            self.target_begin_marker = self.predictor.begin_marker  # type: ignore
+            self.target_end_marker = self.predictor.end_marker  # type: ignore
         else:
             self.target_begin_marker = ""
             self.target_end_marker = ""
 
     def _initialize_population(self, initial_prompts: List[Prompt]) -> List[Prompt]:
-        """Initializes the population of Prompt objects from initial instructions."""
+        """Initialize the population of Prompt objects from initial instructions."""
         population = []
         for prompt in initial_prompts:
             num_examples = random.randint(0, self.upper_shots)
@@ -178,7 +178,7 @@ class CAPO(BaseOptimizer):
             # Sum along rows to get number of better scores for each candidate
             n_better = np.sum(comparison_matrix, axis=1)
 
-            candidates, block_scores = filter_survivors(candidates, block_scores, mask=n_better < k)
+            candidates, block_scores = self.filter_survivors(candidates, block_scores, mask=n_better < k)
 
             i += 1
             self.task.increment_block_idx()

@@ -3,7 +3,7 @@ from unittest.mock import MagicMock, patch
 import pandas as pd
 
 from promptolution.optimizers.capoeira import Capoeira
-from promptolution.utils.capo_utils import build_few_shot_examples, perform_crossover, perform_mutation
+from promptolution.utils.capo_utils import perform_crossover, perform_mutation
 from promptolution.utils.prompt import Prompt
 from promptolution.utils.templates import CAPO_CROSSOVER_TEMPLATE, CAPO_FEWSHOT_TEMPLATE, CAPO_MUTATION_TEMPLATE
 

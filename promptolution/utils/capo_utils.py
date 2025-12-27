@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 import random
-from typing import List, Optional
 
 import pandas as pd
+
+from typing import List, Optional
 
 from promptolution.utils.formatting import extract_from_tag
 from promptolution.utils.prompt import Prompt
@@ -67,8 +68,10 @@ def perform_crossover(
     crossover_prompts: List[str] = []
     offspring_few_shots: List[List[str]] = []
     for _ in range(crossovers_per_iter):
-        mother, father = (parents if len(parents) == 2 else random.sample(parents, 2))
-        crossover_prompt = template.replace("<mother>", mother.instruction).replace("<father>", father.instruction).strip()
+        mother, father = parents if len(parents) == 2 else random.sample(parents, 2)
+        crossover_prompt = (
+            template.replace("<mother>", mother.instruction).replace("<father>", father.instruction).strip()
+        )
         crossover_prompts.append(crossover_prompt)
         combined_few_shots = mother.few_shots + father.few_shots
         num_few_shots = (len(mother.few_shots) + len(father.few_shots)) // 2

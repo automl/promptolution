@@ -6,11 +6,11 @@ from abc import ABC, abstractmethod
 import numpy as np
 import pandas as pd
 
-from typing import TYPE_CHECKING, Dict, List, Literal, Optional, Tuple, Union, overload
+from typing import TYPE_CHECKING, Dict, List, Literal, Optional, Tuple, Union, cast, overload
 
+from promptolution.utils.logging import get_logger
 from promptolution.utils.prompt import Prompt
 from promptolution.utils.token_counter import get_token_counter
-from promptolution.utils.logging import get_logger
 
 logger = get_logger(__name__)
 
@@ -116,7 +116,7 @@ class BaseTask(ABC):
         ys: List[str],
         eval_strategy: Literal["full", "subsample", "sequential_block", "random_block", "evaluated"] = "full",
     ) -> List[Tuple[str, str, str]]:
-        """Generates (prompt, x, y) keys that require prediction.
+        """Generate (prompt, x, y) keys that require prediction.
 
         Returns keys not found in eval_cache.
         """
@@ -138,7 +138,7 @@ class BaseTask(ABC):
         return_agg_scores: bool,
         return_seq: bool,
     ) -> Union[List[float], List[List[float]], Tuple[List[List[float]], List[List[str]]]]:
-        """Collects all results for the current batch from the cache and formats them."""
+        """Collect all results for the current batch from the cache and format them."""
         assert not (return_agg_scores and return_seq), "Cannot return both aggregated scores and sequences"
 
         scores = []
@@ -173,8 +173,7 @@ class BaseTask(ABC):
         """
         raise NotImplementedError
 
-    # TODO: create overload for return_costs=True
-    @overload 
+    @overload
     def evaluate(
         self,
         prompts: List[Prompt],
@@ -183,6 +182,7 @@ class BaseTask(ABC):
         return_agg_scores: Literal[True] = True,
         return_seq: Literal[False] = False,
         eval_strategy: Optional["EvalStrategy"] = None,
+        return_costs: Literal[False] = False,
     ) -> List[float]:
         ...
 
@@ -195,6 +195,7 @@ class BaseTask(ABC):
         return_agg_scores: Literal[False] = False,
         return_seq: Literal[False] = False,
         eval_strategy: Optional["EvalStrategy"] = None,
+        return_costs: Literal[False] = False,
     ) -> List[List[float]]:
         ...
 
@@ -207,6 +208,7 @@ class BaseTask(ABC):
         return_agg_scores: Literal[False] = False,
         return_seq: Literal[True] = True,
         eval_strategy: Optional["EvalStrategy"] = None,
+        return_costs: Literal[False] = False,
     ) -> Tuple[List[List[float]], List[List[str]]]:
         ...
 
@@ -219,6 +221,7 @@ class BaseTask(ABC):
         return_agg_scores: Literal[True] = True,
         return_seq: Literal[False] = False,
         eval_strategy: Optional["EvalStrategy"] = None,
+        return_costs: Literal[False] = False,
     ) -> List[float]:
         ...
 
@@ -231,6 +234,7 @@ class BaseTask(ABC):
         return_agg_scores: Literal[False] = False,
         return_seq: Literal[False] = False,
         eval_strategy: Optional["EvalStrategy"] = None,
+        return_costs: Literal[False] = False,
     ) -> List[List[float]]:
         ...
 
@@ -243,7 +247,60 @@ class BaseTask(ABC):
         return_agg_scores: Literal[False] = False,
         return_seq: Literal[True] = True,
         eval_strategy: Optional["EvalStrategy"] = None,
+        return_costs: Literal[False] = False,
     ) -> Tuple[List[List[float]], List[List[str]]]:
+        ...
+
+    @overload
+    def evaluate(
+        self,
+        prompts: List[Prompt],
+        predictor: "BasePredictor",
+        system_prompts: Optional[Union[str, List[str]]] = None,
+        return_agg_scores: Literal[True] = True,
+        return_seq: Literal[False] = False,
+        eval_strategy: Optional["EvalStrategy"] = None,
+        return_costs: Literal[True] = True,
+    ) -> Tuple[List[float], List[float], List[float]]:
+        ...
+
+    @overload
+    def evaluate(
+        self,
+        prompts: List[Prompt],
+        predictor: "BasePredictor",
+        system_prompts: Optional[Union[str, List[str]]] = None,
+        return_agg_scores: Literal[False] = False,
+        return_seq: Literal[False] = False,
+        eval_strategy: Optional["EvalStrategy"] = None,
+        return_costs: Literal[True] = True,
+    ) -> Tuple[List[List[float]], List[List[float]], List[List[float]]]:
+        ...
+
+    @overload
+    def evaluate(
+        self,
+        prompts: Prompt,
+        predictor: "BasePredictor",
+        system_prompts: Optional[Union[str, List[str]]] = None,
+        return_agg_scores: Literal[True] = True,
+        return_seq: Literal[False] = False,
+        eval_strategy: Optional["EvalStrategy"] = None,
+        return_costs: Literal[True] = True,
+    ) -> Tuple[List[float], List[float], List[float]]:
+        ...
+
+    @overload
+    def evaluate(
+        self,
+        prompts: Prompt,
+        predictor: "BasePredictor",
+        system_prompts: Optional[Union[str, List[str]]] = None,
+        return_agg_scores: Literal[False] = False,
+        return_seq: Literal[False] = False,
+        eval_strategy: Optional["EvalStrategy"] = None,
+        return_costs: Literal[True] = True,
+    ) -> Tuple[List[List[float]], List[List[float]], List[List[float]]]:
         ...
 
     def evaluate(
@@ -260,6 +317,7 @@ class BaseTask(ABC):
         List[List[float]],
         Tuple[List[List[float]], List[List[str]]],
         Tuple[List[float], List[float], List[float]],
+        Tuple[List[List[float]], List[List[float]], List[List[float]]],
     ]:
         """Evaluate a set of prompts using a given predictor.
 
@@ -269,8 +327,6 @@ class BaseTask(ABC):
         """
         assert not (return_agg_scores and return_seq), "Cannot return both aggregated scores and sequences"
         assert not return_seq or not return_costs, "Token cost reporting is not supported together with sequences."
-
-        seqs: List[str] = []
 
         prompts = [prompts] if isinstance(prompts, Prompt) else prompts
         eval_strategy = eval_strategy or self.eval_strategy
@@ -288,10 +344,11 @@ class BaseTask(ABC):
         else:
             preds_seqs = ([], []) if return_seq else []
 
+        seqs: List[str] = []
         if return_seq:
             preds, seqs = preds_seqs if isinstance(preds_seqs, tuple) else (preds_seqs, [])
         else:
-            preds = preds_seqs
+            preds = cast(List[str], preds_seqs)
 
         scores: List[float] = self._evaluate(list(xs_to_evaluate), list(ys_to_evaluate), preds)
         for i, cache_key in enumerate(batches):
@@ -311,25 +368,32 @@ class BaseTask(ABC):
             return agg_scores
 
         token_counter = get_token_counter(predictor.llm)
-        
-        per_prompt_inputs: List[float] = []
-        per_prompt_outputs: List[float] = []
 
-        xs_token_mean = np.mean([token_counter(x) for x in xs])
+        per_prompt_inputs: List[List[float]] = []
+        per_prompt_outputs: List[List[float]] = []
+
+        input_token_counts = [float(token_counter(x)) for x in xs]
 
         for idx, prompt in enumerate(prompts):
-            prompt_tokens = token_counter(prompt.construct_prompt())
-            input_tokens = prompt_tokens + xs_token_mean
-            avg_output = np.mean([token_counter(p) for p in preds[idx]])
+            prompt_tokens = float(token_counter(prompt.construct_prompt()))
+            start = idx * len(xs)
+            end = (idx + 1) * len(xs)
+            preds_for_prompt = preds[start:end]
+            output_token_counts = [float(token_counter(p)) for p in preds_for_prompt]
 
-            per_prompt_inputs.append(input_tokens)
-            per_prompt_outputs.append(avg_output)
+            # Per-datapoint input tokens: prompt tokens + tokens of each x
+            prompt_input_tokens = [prompt_tokens + input_toks for input_toks in input_token_counts]
+            per_prompt_inputs.append(prompt_input_tokens)
+            per_prompt_outputs.append(output_token_counts)
 
-        # convert to numpy
-        per_prompt_inputs = np.array(per_prompt_inputs, dtype=float)
-        per_prompt_outputs = np.array(per_prompt_outputs, dtype=float)
+        if return_agg_scores:
+            agg_scores_list = cast(List[float], agg_scores)
+            per_prompt_inputs_mean = [float(np.mean(tokens)) for tokens in per_prompt_inputs]
+            per_prompt_outputs_mean = [float(np.mean(tokens)) for tokens in per_prompt_outputs]
+            return agg_scores_list, per_prompt_inputs_mean, per_prompt_outputs_mean
 
-        return agg_scores, per_prompt_inputs, per_prompt_outputs
+        score_matrix = cast(List[List[float]], agg_scores)
+        return score_matrix, per_prompt_inputs, per_prompt_outputs
 
     def pop_datapoints(self, n: Optional[int] = None, frac: Optional[float] = None) -> pd.DataFrame:
         """Pop a number of datapoints from the dataset.

@@ -3,10 +3,11 @@
 from __future__ import annotations
 
 import random
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
 
 import numpy as np
 import pandas as pd
+
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
 
 if TYPE_CHECKING:  # pragma: no cover
     from promptolution.utils.callbacks import BaseCallback
@@ -17,7 +18,6 @@ if TYPE_CHECKING:  # pragma: no cover
 
 from promptolution.optimizers.base_optimizer import BaseOptimizer
 from promptolution.utils.capo_utils import build_few_shot_examples, perform_crossover, perform_mutation
-from promptolution.utils.formatting import extract_from_tag
 from promptolution.utils.logging import get_logger
 from promptolution.utils.prompt import Prompt
 from promptolution.utils.templates import CAPO_CROSSOVER_TEMPLATE, CAPO_FEWSHOT_TEMPLATE, CAPO_MUTATION_TEMPLATE
@@ -85,7 +85,7 @@ class Capoeira(BaseOptimizer):
         self.population_size = len(self.prompts)
 
         if hasattr(self.predictor, "begin_marker") and hasattr(self.predictor, "end_marker"):
-            self.target_begin_marker = self.predictor.begin_marker # type: ignore
+            self.target_begin_marker = self.predictor.begin_marker  # type: ignore
             self.target_end_marker = self.predictor.end_marker  # type: ignore
         else:
             self.target_begin_marker = ""
@@ -112,7 +112,9 @@ class Capoeira(BaseOptimizer):
 
         self.prompts = population
         # TODO: align placement of the logic with capo
-        self.max_prompt_length = max(self.token_counter(p.construct_prompt()) for p in self.prompts) if self.prompts else 1
+        self.max_prompt_length = (
+            max(self.token_counter(p.construct_prompt()) for p in self.prompts) if self.prompts else 1
+        )
         initial_vectors = self._evaluate_candidates(self.prompts)
         self.prompts, selected_vectors = self._select_population(self.prompts, initial_vectors)
         self.scores = (-selected_vectors[:, 0]).tolist()
@@ -127,15 +129,22 @@ class Capoeira(BaseOptimizer):
             return_agg_scores=True,
         )
 
+        # TODO move to evaluate method!
+        input_tokens_array = np.array(input_tokens, dtype=float)
+        output_tokens_array = np.array(output_tokens, dtype=float)
+        scores_array = np.array(scores, dtype=float)
+
         score_vectors = np.column_stack(
             [
-                -np.array(scores, dtype=float),
-                self.cost_per_input_token * input_tokens + self.cost_per_output_token * output_tokens,
+                -scores_array,
+                self.cost_per_input_token * input_tokens_array + self.cost_per_output_token * output_tokens_array,
             ]
         )
         return score_vectors
 
-    def _select_population(self, candidates: List[Prompt], score_vectors: np.ndarray) -> Tuple[List[Prompt], np.ndarray]:
+    def _select_population(
+        self, candidates: List[Prompt], score_vectors: np.ndarray
+    ) -> Tuple[List[Prompt], np.ndarray]:
         selected_indices: List[int] = []
         fronts = self.fast_non_dominated_sort(score_vectors)
         for front in fronts:
