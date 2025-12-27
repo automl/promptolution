@@ -115,8 +115,8 @@ class CAPO(BaseOptimizer):
         self.population_size = len(self.prompts)
 
         if hasattr(self.predictor, "begin_marker") and hasattr(self.predictor, "end_marker"):
-            self.target_begin_marker = self.predictor.begin_marker
-            self.target_end_marker = self.predictor.end_marker
+            self.target_begin_marker = self.predictor.begin_marker # type: ignore
+            self.target_end_marker = self.predictor.end_marker # type: ignore
         else:
             self.target_begin_marker = ""
             self.target_end_marker = ""

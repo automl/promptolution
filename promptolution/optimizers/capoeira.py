@@ -39,7 +39,6 @@ class Capoeira(BaseOptimizer):
         mutation_template: Optional[str] = None,
         crossovers_per_iter: int = 4,
         upper_shots: int = 5,
-        population_size: Optional[int] = None,
         cost_per_input_token: float = 1.0,
         cost_per_output_token: float = 0.0,
         check_fs_accuracy: bool = True,
@@ -59,7 +58,6 @@ class Capoeira(BaseOptimizer):
             mutation_template: Optional meta-prompt template for mutation.
             crossovers_per_iter: Number of crossover operations per iteration.
             upper_shots: Maximum number of few-shot examples to attach.
-            population_size: Target population size used when pruning fronts.
             cost_per_input_token: Weight applied to input token cost for the cost objective.
             cost_per_output_token: Weight applied to output token cost for the cost objective.
             check_fs_accuracy: Whether to verify few-shot correctness before use.
@@ -72,7 +70,7 @@ class Capoeira(BaseOptimizer):
         self.downstream_llm = predictor.llm
         self.crossovers_per_iter = crossovers_per_iter
         self.upper_shots = upper_shots
-        self.population_size = population_size
+
         self.cost_per_input_token = cost_per_input_token
         self.cost_per_output_token = cost_per_output_token
         self.check_fs_accuracy = check_fs_accuracy
@@ -84,11 +82,11 @@ class Capoeira(BaseOptimizer):
         self.mutation_template = self._initialize_meta_template(mutation_template or CAPO_MUTATION_TEMPLATE)
         self.token_counter = get_token_counter(self.downstream_llm)
         self.df_few_shots = df_few_shots if df_few_shots is not None else task.pop_datapoints(frac=0.1)
-        self.population_size = self.population_size or len(self.prompts) or 1
+        self.population_size = len(self.prompts)
 
         if hasattr(self.predictor, "begin_marker") and hasattr(self.predictor, "end_marker"):
-            self.target_begin_marker = self.predictor.begin_marker
-            self.target_end_marker = self.predictor.end_marker
+            self.target_begin_marker = self.predictor.begin_marker # type: ignore
+            self.target_end_marker = self.predictor.end_marker  # type: ignore
         else:
             self.target_begin_marker = ""
             self.target_end_marker = ""

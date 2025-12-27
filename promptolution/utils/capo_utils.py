@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import random
-from typing import Callable, List
+from typing import List, Optional
 
 import pandas as pd
 
@@ -16,7 +16,7 @@ def build_few_shot_examples(
     num_examples: int,
     df_few_shots: pd.DataFrame,
     x_column: str,
-    y_column: str,
+    y_column: Optional[str],
     predictor,
     fewshot_template: str,
     target_begin_marker: str,
