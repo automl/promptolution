@@ -118,7 +118,7 @@ class Capoeira(BaseOptimizer):
         self.scores = (-selected_vectors[:, 0]).tolist()
 
     def _evaluate_candidates(self, candidates: List[Prompt]) -> np.ndarray:
-        evaluation = self.task.evaluate(
+        scores, input_tokens, output_tokens = self.task.evaluate(
             candidates,
             self.predictor,
             eval_strategy=self.task.eval_strategy,
@@ -127,24 +127,10 @@ class Capoeira(BaseOptimizer):
             return_agg_scores=True,
         )
 
-        if isinstance(evaluation, tuple) and len(evaluation) == 3:
-            scores, input_tokens, output_tokens = evaluation
-        else:
-            scores = evaluation  # type: ignore[assignment]
-            input_tokens = [self.token_counter(c.construct_prompt()) for c in candidates]
-            output_tokens = [0.0 for _ in candidates]
-
-        input_tokens_arr = np.array(input_tokens, dtype=float)
-        output_tokens_arr = np.array(output_tokens, dtype=float)
-
-        if not input_tokens_arr.any() and not output_tokens_arr.any():
-            input_tokens_arr = np.array([self.token_counter(c.construct_prompt()) for c in candidates], dtype=float)
-            output_tokens_arr = np.zeros_like(input_tokens_arr, dtype=float)
-
         score_vectors = np.column_stack(
             [
                 -np.array(scores, dtype=float),
-                self.cost_per_input_token * input_tokens_arr + self.cost_per_output_token * output_tokens_arr,
+                self.cost_per_input_token * input_tokens + self.cost_per_output_token * output_tokens,
             ]
         )
         return score_vectors

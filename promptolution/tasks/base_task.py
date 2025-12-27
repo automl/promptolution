@@ -173,7 +173,8 @@ class BaseTask(ABC):
         """
         raise NotImplementedError
 
-    @overload
+    # TODO: create overload for return_costs=True
+    @overload 
     def evaluate(
         self,
         prompts: List[Prompt],
@@ -270,7 +271,6 @@ class BaseTask(ABC):
         assert not return_seq or not return_costs, "Token cost reporting is not supported together with sequences."
 
         seqs: List[str] = []
-        token_counter = get_token_counter(predictor.llm) if return_costs else None
 
         prompts = [prompts] if isinstance(prompts, Prompt) else prompts
         eval_strategy = eval_strategy or self.eval_strategy
@@ -310,36 +310,24 @@ class BaseTask(ABC):
         if not return_costs:
             return agg_scores
 
+        token_counter = get_token_counter(predictor.llm)
+        
         per_prompt_inputs: List[float] = []
         per_prompt_outputs: List[float] = []
 
-        if token_counter is None:
-            logger.warning("⚠️ Token counting unavailable; returning zero costs.")
-            per_prompt_inputs = [0.0 for _ in prompts]
-            per_prompt_outputs = [0.0 for _ in prompts]
-            return agg_scores, per_prompt_inputs, per_prompt_outputs
-
-        preds_by_prompt: List[List[str]] = []
-        if isinstance(preds, list):
-            if preds and isinstance(preds[0], list):
-                preds_by_prompt = preds  # type: ignore[assignment]
-            elif preds and isinstance(preds[0], str):
-                preds_by_prompt = [preds for _ in prompts]
-
-        xs_token_mean = float(np.mean([token_counter(x) for x in xs])) if xs else 0.0
+        xs_token_mean = np.mean([token_counter(x) for x in xs])
 
         for idx, prompt in enumerate(prompts):
             prompt_tokens = token_counter(prompt.construct_prompt())
             input_tokens = prompt_tokens + xs_token_mean
-
-            if preds_by_prompt and idx < len(preds_by_prompt) and preds_by_prompt[idx]:
-                avg_output = float(np.mean([token_counter(p) for p in preds_by_prompt[idx]]))
-            else:
-                avg_output = 0.0
-                logger.warning("⚠️ Unable to estimate output tokens; defaulting to 0.")
+            avg_output = np.mean([token_counter(p) for p in preds[idx]])
 
             per_prompt_inputs.append(input_tokens)
             per_prompt_outputs.append(avg_output)
+
+        # convert to numpy
+        per_prompt_inputs = np.array(per_prompt_inputs, dtype=float)
+        per_prompt_outputs = np.array(per_prompt_outputs, dtype=float)
 
         return agg_scores, per_prompt_inputs, per_prompt_outputs
 

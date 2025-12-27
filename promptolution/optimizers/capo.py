@@ -221,26 +221,26 @@ class CAPO(BaseOptimizer):
 
         return self.prompts
 
+    @staticmethod
+    def filter_survivors(
+        candidates: List[Prompt], scores: List[List[float]], mask: Any
+    ) -> Tuple[List[Prompt], List[List[float]]]:
+        """Filter candidates and scores based on a boolean mask.
 
-def filter_survivors(
-    candidates: List[Prompt], scores: List[List[float]], mask: Any
-) -> Tuple[List[Prompt], List[List[float]]]:
-    """Filter candidates and scores based on a boolean mask.
+        Args:
+            candidates (List[Prompt]): List of candidate prompts.
+            scores (List[List[float]]): Corresponding scores for the candidates.
+            mask (Any): Boolean mask indicating which candidates to keep.
 
-    Args:
-        candidates (List[Prompt]): List of candidate prompts.
-        scores (List[List[float]]): Corresponding scores for the candidates.
-        mask (Any): Boolean mask indicating which candidates to keep.
+        Returns:
+            Tuple[List[Prompt], List[List[float]]]: Filtered candidates and their scores.
+        """
+        assert len(candidates) == len(mask), "Length of candidates, and mask must be the same."
+        assert all(
+            len(candidates) == len(score) for score in scores
+        ), "Each score list must have the same length as candidates."
 
-    Returns:
-        Tuple[List[Prompt], List[List[float]]]: Filtered candidates and their scores.
-    """
-    assert len(candidates) == len(mask), "Length of candidates, and mask must be the same."
-    assert all(
-        len(candidates) == len(score) for score in scores
-    ), "Each score list must have the same length as candidates."
+        filtered_candidates = [c for c, m in zip(candidates, mask) if m]
+        filtered_scores = [[s for s, m in zip(score, mask) if m] for score in scores]
 
-    filtered_candidates = [c for c, m in zip(candidates, mask) if m]
-    filtered_scores = [[s for s, m in zip(score, mask) if m] for score in scores]
-
-    return filtered_candidates, filtered_scores
+        return filtered_candidates, filtered_scores
