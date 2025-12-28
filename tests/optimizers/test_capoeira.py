@@ -15,7 +15,6 @@ def test_capoeira_initialization(mock_meta_llm, mock_predictor, initial_prompts,
         meta_llm=mock_meta_llm,
         initial_prompts=initial_prompts,
         df_few_shots=mock_df,
-        population_size=None,
     )
 
     assert optimizer.crossovers_per_iter == 4
@@ -47,7 +46,6 @@ def test_capoeira_selection_prefers_better_score(mock_meta_llm, mock_predictor, 
         meta_llm=mock_meta_llm,
         initial_prompts=["short", "longer prompt"],
         df_few_shots=mock_df,
-        population_size=1,
     )
     optimizer.token_counter = lambda _: 1
     candidates = [Prompt("short"), Prompt("longer prompt")]

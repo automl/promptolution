@@ -12,14 +12,12 @@ from promptolution.utils.logging import get_logger
 from promptolution.utils.prompt import Prompt
 from promptolution.utils.token_counter import get_token_counter
 
-logger = get_logger(__name__)
-
-logger = get_logger(__name__)
 
 if TYPE_CHECKING:  # pragma: no cover
     from promptolution.predictors.base_predictor import BasePredictor
     from promptolution.utils.config import ExperimentConfig
 
+logger = get_logger(__name__)
 
 TaskType = Literal["classification", "reward", "judge"]
 EvalStrategy = Literal["full", "subsample", "sequential_block", "random_block"]
