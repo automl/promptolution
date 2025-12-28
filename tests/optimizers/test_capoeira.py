@@ -15,7 +15,6 @@ def test_capoeira_initialization(mock_meta_llm, mock_predictor, initial_prompts,
         meta_llm=mock_meta_llm,
         initial_prompts=initial_prompts,
         df_few_shots=mock_df,
-        population_size=None,
     )
 
     assert optimizer.crossovers_per_iter == 4
