@@ -44,12 +44,11 @@ def test_capoeira_selection_prefers_better_score(mock_meta_llm, mock_predictor, 
         predictor=mock_predictor,
         task=mock_task,
         meta_llm=mock_meta_llm,
-        initial_prompts=["short", "longer prompt"],
+        initial_prompts=["short"],
         df_few_shots=mock_df,
     )
-    optimizer.token_counter = lambda _: 1
     candidates = [Prompt("short"), Prompt("longer prompt")]
-    optimizer.task.evaluate = MagicMock(return_value=[0.4, 0.9])
+    optimizer.task.evaluate = MagicMock(return_value=([0.1, 0.9], [len("short"), len("longer prompt")], [5, 5]))  # second candidate is better
 
     objectives = optimizer._evaluate_candidates(candidates)
     selected, _ = optimizer._select_population(candidates, objectives)

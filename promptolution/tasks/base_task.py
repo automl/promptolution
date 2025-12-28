@@ -12,15 +12,15 @@ from promptolution.utils.logging import get_logger
 from promptolution.utils.prompt import Prompt
 from promptolution.utils.token_counter import get_token_counter
 
-
 if TYPE_CHECKING:  # pragma: no cover
     from promptolution.predictors.base_predictor import BasePredictor
     from promptolution.utils.config import ExperimentConfig
 
-logger = get_logger(__name__)
 
 TaskType = Literal["classification", "reward", "judge"]
-EvalStrategy = Literal["full", "subsample", "sequential_block", "random_block"]
+EvalStrategy = Literal["full", "subsample", "sequential_block", "random_block", "evaluated"]
+
+logger = get_logger(__name__)
 
 
 class BaseTask(ABC):
@@ -49,34 +49,34 @@ class BaseTask(ABC):
             seed (int): Random seed for reproducibility.
             config (ExperimentConfig, optional): Configuration for the task, overriding defaults.
         """
-        self.df = df
-        self.x_column = x_column
-        self.y_column = y_column
-        self.task_description = task_description
-        self.n_subsamples = n_subsamples
-        self.eval_strategy = eval_strategy
-        self.seed = seed
+        self.df: pd.DataFrame = df
+        self.x_column: str = x_column
+        self.y_column: Optional[str] = y_column
+        self.task_description: Optional[str] = task_description
+        self.n_subsamples: int = n_subsamples
+        self.eval_strategy: EvalStrategy = eval_strategy
+        self.seed: int = seed
 
         super().__init__()
         if config is not None:
             config.apply_to(self)
 
         self.xs: List[str] = df[self.x_column].values.astype(str).tolist()
-        self.has_y = y_column is not None
+        self.has_y: bool = y_column is not None
         if self.has_y and y_column is not None:
             self.ys: List[str] = df[y_column].values.astype(str).tolist()
         else:
             # If no y_column is provided, create a dummy y array
             self.ys = [""] * len(self.xs)
 
-        self.block_idx = 0
-        self.n_blocks = len(self.xs) // self.n_subsamples if self.n_subsamples > 0 else 1
+        self.block_idx: int = 0
+        self.n_blocks: int = len(self.xs) // self.n_subsamples if self.n_subsamples > 0 else 1
         self.rng = np.random.default_rng(seed)
 
         self.eval_cache: Dict[Tuple[str, str, str], float] = {}  # (prompt, x, y): scores per datapoint
         self.seq_cache: Dict[Tuple[str, str, str], str] = {}  # (prompt, x, y): generating sequence per datapoint
 
-    def subsample(self, eval_strategy: "EvalStrategy" = None) -> Tuple[List[str], List[str]]:
+    def subsample(self, eval_strategy: Optional["EvalStrategy"] = None) -> Tuple[List[str], List[str]]:
         """Subsample the dataset based on the specified parameters.
 
         Args:
@@ -123,7 +123,7 @@ class BaseTask(ABC):
         keys_to_predict = []
         for prompt in prompts:
             for x, y in zip(xs, ys):
-                cache_key = (prompt.construct_prompt(), x, str(y))
+                cache_key = (str(prompt), x, str(y))
                 if cache_key not in self.eval_cache:
                     keys_to_predict.append(cache_key)
         return keys_to_predict
@@ -379,7 +379,6 @@ class BaseTask(ABC):
             preds_for_prompt = preds[start:end]
             output_token_counts = [float(token_counter(p)) for p in preds_for_prompt]
 
-            # Per-datapoint input tokens: prompt tokens + tokens of each x
             prompt_input_tokens = [prompt_tokens + input_toks for input_toks in input_token_counts]
             per_prompt_inputs.append(prompt_input_tokens)
             per_prompt_outputs.append(output_token_counts)

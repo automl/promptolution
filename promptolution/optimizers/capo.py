@@ -157,7 +157,7 @@ class CAPO(BaseOptimizer):
         i = 0
         while len(candidates) > k and i < self.max_n_blocks_eval:
             # new_scores shape: (n_candidates, n_samples)
-            new_scores: List[float] = self.task.evaluate(candidates, self.predictor, return_agg_scores=False)
+            new_scores = self.task.evaluate(candidates, self.predictor, return_agg_scores=False)
 
             # subtract length penalty
             prompt_lengths = np.array([self.token_counter(c.construct_prompt()) for c in candidates])
