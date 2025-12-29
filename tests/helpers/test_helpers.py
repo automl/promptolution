@@ -9,6 +9,7 @@ from tests.mocks.mock_predictor import MockPredictor
 from tests.mocks.mock_task import MockTask
 
 from promptolution.helpers import run_evaluation, run_experiment, run_optimization
+from promptolution.tasks.base_task import Costs, EvalResult
 from promptolution.utils import ExperimentConfig
 from promptolution.utils.prompt import Prompt
 
@@ -200,7 +201,17 @@ def test_run_evaluation(mock_get_task, mock_get_predictor, mock_get_llm, sample_
     prompts = [Prompt(p) for p in prompts]
 
     # Now this will work because mock_task is a MagicMock
-    mock_task.evaluate.return_value = np.array([0.8, 0.7, 0.9])
+    mock_task.evaluate.return_value = EvalResult(
+        scores=np.array([[0.9], [0.8], [0.7]], dtype=float),
+        agg_scores=np.array([0.9, 0.8, 0.7], dtype=float),
+        sequences=np.array([["s1"], ["s2"], ["s3"]], dtype=object),
+        costs=Costs(
+            input_tokens=np.array([[10.0], [10.0], [10.0]], dtype=float),
+            output_tokens=np.array([[5.0], [5.0], [5.0]], dtype=float),
+            agg_input_tokens=np.array([10.0, 10.0, 10.0], dtype=float),
+            agg_output_tokens=np.array([5.0, 5.0, 5.0], dtype=float),
+        ),
+    )
 
     # Run the function
     result = run_evaluation(sample_df, experiment_config, prompts)
@@ -279,7 +290,19 @@ def test_helpers_integration(sample_df, experiment_config):
         # Use a MagicMock instead of MockTask
         mock_task = MagicMock()
         mock_task.classes = ["positive", "neutral", "negative"]
-        mock_task.evaluate = MagicMock(return_value=np.array([0.85, 0.75]))
+        mock_task.evaluate = MagicMock(
+            return_value=EvalResult(
+                scores=np.array([[0.9], [0.8]], dtype=float),
+                agg_scores=np.array([0.9, 0.8], dtype=float),
+                sequences=np.array([["s1"], ["s2"]], dtype=object),
+                costs=Costs(
+                    input_tokens=np.array([[10.0], [10.0]], dtype=float),
+                    output_tokens=np.array([[5.0], [5.0]], dtype=float),
+                    agg_input_tokens=np.array([10.0, 10.0], dtype=float),
+                    agg_output_tokens=np.array([5.0, 5.0], dtype=float),
+                ),
+            )
+        )
 
         mock_optimizer = MagicMock()
 

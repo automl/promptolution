@@ -105,7 +105,8 @@ class OPRO(BaseOptimizer):
         self.prompts, self.scores = sort_prompts_by_scores(self.prompts, self.scores, top_k=self.max_num_instructions)
 
     def _pre_optimization_loop(self):
-        self.scores = self.task.evaluate(self.prompts, self.predictor)
+        result = self.task.evaluate(self.prompts, self.predictor)
+        self.scores = result.agg_scores.tolist()
         self.meta_prompt = self.meta_prompt_template.replace("<instructions>", self._format_instructions()).replace(
             "<examples>", self._sample_examples()
         )
@@ -125,7 +126,8 @@ class OPRO(BaseOptimizer):
                 duplicate_prompts += 1
                 continue
 
-            score = self.task.evaluate(prompt, self.predictor)[0]
+            prompt_result = self.task.evaluate([prompt], self.predictor)
+            score = prompt_result.agg_scores.tolist()[0]
 
             self._add_prompt_and_score(prompt, score)
 

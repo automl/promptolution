@@ -1,6 +1,8 @@
 """Module defining the Prompt class and related utilities."""
 
-from typing import List, Optional, Tuple
+import numpy as np
+
+from typing import List, Optional, Sequence, Tuple, Union
 
 from promptolution.utils.templates import DOWNSTREAM_TEMPLATE, DOWNSTREAM_TEMPLATE_W_FEWSHOTS
 
@@ -48,25 +50,40 @@ class Prompt:
 
 
 def sort_prompts_by_scores(
-    prompts: List[Prompt], scores: List[float], top_k: Optional[int] = None
+    prompts: List[Prompt], scores: Union[Sequence[float], np.ndarray], top_k: Optional[int] = None
 ) -> Tuple[List[Prompt], List[float]]:
-    """Sorts prompts based on their associated scores in descending order.
+    """Sort prompts by score, accepting scalar, 1D, or multi-dimensional scores.
+
+    Scores can be provided as Python lists or NumPy arrays. If scores are multi-
+    dimensional (e.g., per-subsample results), they are aggregated with a
+    ``nanmean`` across all non-leading axes before sorting.
 
     Args:
-        prompts (List[Prompt]): List of Prompt objects.
-        scores (List[float]): Corresponding list of scores.
-        top_k (Optional[int]): If provided, limits the result to the top_k prompts. Defaults to None (returns all).
+        prompts (List[Prompt]): Prompt objects to sort.
+        scores (Sequence[float] | np.ndarray): Corresponding scores; can be nested lists or arrays.
+        top_k (Optional[int]): Limit the result to the top_k prompts.
 
     Returns:
-        Tuple[List[Prompt], List[float]]: A tuple containing prompts sorted by scores in descending order and their corresponding sorted scores.
+        Tuple[List[Prompt], List[float]]: Prompts and their aggregated scores,
+        sorted in descending order.
     """
-    assert len(prompts) == len(scores), "Prompts and scores must have the same length."
+    scores_arr = np.asarray(scores, dtype=float)
+    if scores_arr.ndim == 0:
+        scores_arr = scores_arr.reshape(1)
 
-    sorted_prompts = [prompt for score, prompt in sorted(zip(scores, prompts), reverse=True, key=lambda x: x[0])]
-    sorted_scores = sorted(scores, reverse=True)
+    assert scores_arr.shape[0] == len(prompts), "Prompts and scores must have the same length."
+
+    if scores_arr.ndim > 1:
+        axes_to_reduce = tuple(range(1, scores_arr.ndim))
+        scores_arr = np.nanmean(scores_arr, axis=axes_to_reduce)
+
+    prompt_score_pairs = list(zip(prompts, scores_arr.tolist()))
+    prompt_score_pairs.sort(key=lambda pair: pair[1], reverse=True)
 
     if top_k is not None:
-        sorted_prompts = sorted_prompts[:top_k]
-        sorted_scores = sorted_scores[:top_k]
+        prompt_score_pairs = prompt_score_pairs[:top_k]
+
+    sorted_prompts = [p for p, _ in prompt_score_pairs]
+    sorted_scores = [s for _, s in prompt_score_pairs]
 
     return sorted_prompts, sorted_scores

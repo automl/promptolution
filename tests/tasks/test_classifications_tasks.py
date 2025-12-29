@@ -21,44 +21,48 @@ def test_classification_task_initialization(mock_df):
 def test_task_evaluate(mock_classification_task_with_subsampling, mock_predictor):
     """Test the evaluate method of ClassificationTask."""
     prompts = [Prompt("Classify sentiment:")]
-    scores = mock_classification_task_with_subsampling.evaluate(prompts, mock_predictor)
+    result = mock_classification_task_with_subsampling.evaluate(prompts, mock_predictor)
+    scores = result.agg_scores
 
-    assert isinstance(scores, list)
-    assert len(scores) == 1
+    assert scores.shape == (1,)
     assert 0 <= scores[0] <= 1
 
     prompts = ["Classify sentiment:", "Rate the text:"]
     prompts = [Prompt(p) for p in prompts]
 
-    scores = mock_classification_task_with_subsampling.evaluate(prompts, mock_predictor)
+    result = mock_classification_task_with_subsampling.evaluate(prompts, mock_predictor)
+    scores = result.agg_scores
 
-    assert len(scores) == 2
-    assert all(0 <= score <= 1 for score in scores)
+    assert scores.shape == (2,)
+    assert np.all((scores >= 0) & (scores <= 1))
 
 
 def test_task_evaluate_with_subsampling(mock_classification_task_with_subsampling, mock_predictor):
     """Test the evaluate method with subsampling."""
     prompts = [Prompt("Classify sentiment:")]
 
-    scores = mock_classification_task_with_subsampling.evaluate(
+    scores_result = mock_classification_task_with_subsampling.evaluate(
         prompts,
         mock_predictor,
     )
+    scores = scores_result.agg_scores
 
-    assert len(scores) == 1
+    assert scores.shape == (1,)
 
     with pytest.raises(AssertionError, match=r".*Arrays are not equal.*"):
         np.random.seed(42)
-        scores1 = mock_classification_task_with_subsampling.evaluate(
+        scores1_result = mock_classification_task_with_subsampling.evaluate(
             prompts,
             mock_predictor,
         )
+        scores1 = scores1_result.scores
 
         np.random.seed(43)
-        scores2 = mock_classification_task_with_subsampling.evaluate(
+        scores2_result = mock_classification_task_with_subsampling.evaluate(
             prompts,
             mock_predictor,
         )
+        scores2 = scores2_result.scores
 
         np.testing.assert_array_equal(scores1, scores2)
 
@@ -67,14 +71,13 @@ def test_task_evaluate_with_return_seq(mock_classification_task_with_subsampling
     """Test the evaluate method with return_seq=True."""
     prompts = [Prompt("Classify sentiment:")]
 
-    scores, seqs = mock_classification_task_with_subsampling.evaluate(
-        prompts, mock_predictor, return_seq=True, return_agg_scores=False
-    )
+    seq_result = mock_classification_task_with_subsampling.evaluate(prompts, mock_predictor)
 
-    assert len(scores) == 1
-    assert len(scores[0]) == mock_classification_task_with_subsampling.n_subsamples
-    assert len(seqs) == 1
-    assert len(seqs[0]) == mock_classification_task_with_subsampling.n_subsamples
+    assert seq_result.scores.shape == (1, mock_classification_task_with_subsampling.n_subsamples)
+    assert seq_result.sequences is not None
+    assert len(seq_result.sequences) == 1
+    assert len(seq_result.sequences[0]) == mock_classification_task_with_subsampling.n_subsamples
+    assert seq_result.costs is not None
 
 
 def test_task_evaluate_with_system_prompts(
@@ -85,11 +88,9 @@ def test_task_evaluate_with_system_prompts(
     prompts = [Prompt("Classify sentiment:")]
     system_prompts = ["Be concise"]
 
-    scores = mock_classification_task_with_subsampling.evaluate(
-        prompts, mock_predictor, system_prompts=system_prompts, return_agg_scores=True
-    )
+    result = mock_classification_task_with_subsampling.evaluate(prompts, mock_predictor, system_prompts=system_prompts)
 
-    assert len(scores) == 1
+    assert result.agg_scores.shape == (1,)
     assert any(call["system_prompts"] == system_prompts for call in mock_downstream_llm.call_history)
 
 
@@ -97,7 +98,7 @@ def test_pop_datapoints(mock_df):
     task = ClassificationTask(
         df=mock_df,
         task_description="Sentiment classification task",
-        eval_strategy="sequential_blocks",
+        eval_strategy="sequential_block",
     )
 
     df = task.pop_datapoints(n=1)
@@ -108,7 +109,7 @@ def test_pop_datapoints(mock_df):
 
 def test_blocks(mock_df):
     task = ClassificationTask(
-        df=mock_df, task_description="Sentiment classification task", eval_strategy="sequential_blocks", n_subsamples=1
+        df=mock_df, task_description="Sentiment classification task", eval_strategy="sequential_block", n_subsamples=1
     )
 
     task.increment_block_idx()

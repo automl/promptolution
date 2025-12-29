@@ -14,7 +14,7 @@ def test_first_occurrence_classifier(mock_downstream_llm, mock_df):
     prompts = ["Classify:"] * len(xs)
 
     # Make predictions
-    predictions = classifier.predict(prompts, xs)
+    predictions, _ = classifier.predict(prompts, xs)
 
     # Verify shape and content
     assert len(predictions) == 4
@@ -39,7 +39,7 @@ def test_marker_based_classifier(mock_downstream_llm, mock_df):
     prompts = ["Classify:"] * len(xs)
 
     # Make predictions
-    predictions = classifier.predict(prompts, xs)
+    predictions, _ = classifier.predict(prompts, xs)
 
     # Verify shape and content
     assert len(predictions) == 3
@@ -49,7 +49,7 @@ def test_marker_based_classifier(mock_downstream_llm, mock_df):
 
     # Test with invalid class label
     invalid_input = np.array(["Broken item"] * len(prompts))
-    invalid_predictions = classifier.predict(prompts, invalid_input)
+    invalid_predictions, _ = classifier.predict(prompts, invalid_input)
 
     # Should default to first class if invalid
     assert invalid_predictions[0] == "positive"
@@ -70,7 +70,7 @@ def test_marker_based_without_classes(mock_downstream_llm):
     prompts = ["Classify:"] * len(xs)
 
     # Make predictions
-    predictions = predictor.predict(prompts, xs)
+    predictions, _ = predictor.predict(prompts, xs)
 
     # Verify shape and content - should accept any value between markers
     assert len(predictions) == 4
@@ -90,7 +90,7 @@ def test_multiple_prompts_with_classifiers(mock_downstream_llm, mock_df):
     xs = np.array(["I love this product!", "I hate this product!"] * 2)
 
     # Make predictions
-    predictions = classifier.predict(prompts, xs)
+    predictions, _ = classifier.predict(prompts, xs)
 
     # Verify shape and content
     assert len(predictions) == 4
@@ -110,7 +110,7 @@ def test_sequence_return_with_classifiers(mock_downstream_llm, mock_df):
     xs = np.array(["I love this product!"])
 
     # Make predictions with sequences
-    predictions, sequences = classifier.predict(prompts, xs, return_seq=True)
+    predictions, sequences = classifier.predict(prompts, xs)
 
     # Verify predictions
     assert len(predictions) == 1
@@ -140,7 +140,7 @@ def test_marker_based_missing_markers(mock_downstream_llm):
 
     # When markers are missing, it should default to first class
     prompts = ["Classify:"]
-    xs = np.array(["Missing markers"])
-    predictions = classifier.predict(prompts, xs)
+    xs = ["Missing markers"]
+    preds, seqs = classifier.predict(prompts, xs)
 
-    assert predictions[0] == "will"  # Should default to first class
+    assert preds[0] == "will"  # Should default to first class

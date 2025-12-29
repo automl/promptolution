@@ -43,7 +43,6 @@ def build_few_shot_examples(
     preds, seqs = predictor.predict(
         [instruction] * num_examples,
         list(sample_inputs),
-        return_seq=True,
     )
     if isinstance(seqs, str):
         seqs = [seqs]

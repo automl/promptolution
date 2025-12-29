@@ -1,6 +1,7 @@
 """Module for Reward tasks."""
 
 
+import numpy as np
 import pandas as pd
 
 from typing import TYPE_CHECKING, Callable, List, Optional
@@ -53,7 +54,7 @@ class RewardTask(BaseTask):
             config=config,
         )
 
-    def _evaluate(self, xs: List[str], ys: List[str], preds: List[str]) -> List[float]:
+    def _evaluate(self, xs: List[str], ys: List[str], preds: List[str]) -> np.ndarray:
         """Calculate the score for a single reward prediction using the reward function."""
         rewards = [self.reward_function(pred) for pred in preds]
-        return rewards
+        return np.asarray(rewards, dtype=float)

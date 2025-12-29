@@ -153,21 +153,20 @@ class CAPO(BaseOptimizer):
             List[Prompt]: List of surviving prompts after racing.
         """
         self.task.reset_block_idx()
-        block_scores: List[List[float]] = []
+        block_scores: List[np.ndarray] = []
         i = 0
         while len(candidates) > k and i < self.max_n_blocks_eval:
             # new_scores shape: (n_candidates, n_samples)
-            new_scores = self.task.evaluate(candidates, self.predictor, return_agg_scores=False)
+            results = self.task.evaluate(candidates, self.predictor)
+            new_scores = results.scores
 
             # subtract length penalty
             prompt_lengths = np.array([self.token_counter(c.construct_prompt()) for c in candidates])
             rel_prompt_lengths = prompt_lengths / self.max_prompt_length
 
-            penalized_new_scores = np.array(new_scores) - self.length_penalty * rel_prompt_lengths[:, None]
+            penalized_new_scores = new_scores - self.length_penalty * rel_prompt_lengths[:, None]
 
-            new_scores = penalized_new_scores.tolist()
-
-            block_scores.append(new_scores)
+            block_scores.append(penalized_new_scores)
             scores = np.concatenate(block_scores, axis=1)
 
             # boolean matrix C_ij indicating if candidate j is better than candidate i
@@ -183,7 +182,8 @@ class CAPO(BaseOptimizer):
             i += 1
             self.task.increment_block_idx()
 
-        avg_scores = self.task.evaluate(candidates, self.predictor, eval_strategy="evaluated")
+        final_result = self.task.evaluate(candidates, self.predictor, eval_strategy="evaluated")
+        avg_scores = final_result.scores.tolist()
         prompts, avg_scores = sort_prompts_by_scores(candidates, avg_scores, top_k=k)
 
         return prompts, avg_scores
@@ -223,8 +223,8 @@ class CAPO(BaseOptimizer):
 
     @staticmethod
     def filter_survivors(
-        candidates: List[Prompt], scores: List[List[float]], mask: Any
-    ) -> Tuple[List[Prompt], List[List[float]]]:
+        candidates: List[Prompt], scores: List[np.ndarray], mask: Any
+    ) -> Tuple[List[Prompt], List[np.ndarray]]:
         """Filter candidates and scores based on a boolean mask.
 
         Args:
@@ -241,6 +241,6 @@ class CAPO(BaseOptimizer):
         ), "Each score list must have the same length as candidates."
 
         filtered_candidates = [c for c, m in zip(candidates, mask) if m]
-        filtered_scores = [[s for s, m in zip(score, mask) if m] for score in scores]
+        filtered_scores = [np.asarray(score)[mask] for score in scores]
 
         return filtered_candidates, filtered_scores

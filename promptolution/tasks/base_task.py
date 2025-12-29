@@ -2,11 +2,12 @@
 
 
 from abc import ABC, abstractmethod
+from dataclasses import dataclass
 
 import numpy as np
 import pandas as pd
 
-from typing import TYPE_CHECKING, Dict, List, Literal, Optional, Tuple, Union, cast, overload
+from typing import TYPE_CHECKING, Dict, List, Literal, Optional, Tuple, Union
 
 from promptolution.utils.logging import get_logger
 from promptolution.utils.prompt import Prompt
@@ -21,6 +22,26 @@ TaskType = Literal["classification", "reward", "judge"]
 EvalStrategy = Literal["full", "subsample", "sequential_block", "random_block", "evaluated"]
 
 logger = get_logger(__name__)
+
+
+@dataclass
+class Costs:
+    """Token costs accounting for model inputs and outputs."""
+
+    input_tokens: np.ndarray  # shape: (n_prompts, n_datapoints)
+    output_tokens: np.ndarray  # shape: (n_prompts, n_datapoints)
+    agg_input_tokens: np.ndarray  # shape: (n_prompts,) - mean over datapoints
+    agg_output_tokens: np.ndarray  # shape: (n_prompts,) - mean over datapoints
+
+
+@dataclass
+class EvalResult:
+    """Evaluation outputs including scores, sequences, and costs."""
+
+    scores: np.ndarray  # shape: (n_prompts, n_datapoints)
+    agg_scores: np.ndarray  # shape: (n_prompts,) - mean over datapoints
+    sequences: np.ndarray  # shape: (n_prompts, n_datapoints)
+    costs: Costs
 
 
 class BaseTask(ABC):
@@ -74,7 +95,7 @@ class BaseTask(ABC):
         self.rng = np.random.default_rng(seed)
 
         self.eval_cache: Dict[Tuple[str, str, str], float] = {}  # (prompt, x, y): scores per datapoint
-        self.seq_cache: Dict[Tuple[str, str, str], str] = {}  # (prompt, x, y): generating sequence per datapoint
+        self.seq_cache: Dict[Tuple[str, str, str], str] = {}  # (prompt, x, y): raw model output per datapoint
 
     def subsample(self, eval_strategy: Optional["EvalStrategy"] = None) -> Tuple[List[str], List[str]]:
         """Subsample the dataset based on the specified parameters.
@@ -113,284 +134,152 @@ class BaseTask(ABC):
         xs: List[str],
         ys: List[str],
         eval_strategy: Literal["full", "subsample", "sequential_block", "random_block", "evaluated"] = "full",
-    ) -> List[Tuple[str, str, str]]:
-        """Generate (prompt, x, y) keys that require prediction.
-
-        Returns keys not found in eval_cache.
-        """
+    ) -> Tuple[List[str], List[str], List[str], List[Tuple[str, str, str]]]:
+        """Return uncached prompt/x/y triples for prediction and their cache keys."""
         if eval_strategy == "evaluated":
-            return []
-        keys_to_predict = []
+            return [], [], [], []
+
+        prompts_to_predict: List[str] = []
+        xs_to_predict: List[str] = []
+        ys_to_predict: List[str] = []
+        keys_to_predict: List[Tuple[str, str, str]] = []
+
         for prompt in prompts:
             for x, y in zip(xs, ys):
                 cache_key = (str(prompt), x, str(y))
-                if cache_key not in self.eval_cache:
-                    keys_to_predict.append(cache_key)
-        return keys_to_predict
+                if cache_key in self.eval_cache:
+                    continue
+                prompts_to_predict.append(str(prompt))
+                xs_to_predict.append(x)
+                ys_to_predict.append(str(y))
+                keys_to_predict.append(cache_key)
+
+        return prompts_to_predict, xs_to_predict, ys_to_predict, keys_to_predict
+
+    @staticmethod
+    def _cache_key(prompt: Prompt, x: str, y: str) -> Tuple[str, str, str]:
+        return (prompt.construct_prompt(), x, y)
 
     def _collect_results_from_cache(
+        self, prompts: List[Prompt], xs: List[str], ys: List[str]
+    ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+        """Collect cached scores and sequences for provided prompts/xs/ys."""
+        score_rows: List[List[float]] = []
+        seq_rows: List[List[str]] = []
+
+        for prompt in prompts:
+            datapoint_scores: List[float] = []
+            datapoint_seqs: List[str] = []
+            for x, y in zip(xs, ys):
+                cache_key = self._cache_key(prompt, x, str(y))
+                datapoint_score = self.eval_cache.get(cache_key, np.nan)
+                datapoint_scores.append(datapoint_score)
+                datapoint_seqs.append(self.seq_cache.get(cache_key, ""))
+            score_rows.append(datapoint_scores)
+            seq_rows.append(datapoint_seqs)
+
+        scores_array = np.array(score_rows, dtype=float)
+        agg_scores = np.nanmean(scores_array, axis=1) if scores_array.size else np.array([])
+        seqs_array = np.array(seq_rows, dtype=object)
+        return scores_array, agg_scores, seqs_array
+
+    def _compute_costs(
         self,
         prompts: List[Prompt],
         xs: List[str],
         ys: List[str],
-        return_agg_scores: bool,
-        return_seq: bool,
-    ) -> Union[List[float], List[List[float]], Tuple[List[List[float]], List[List[str]]]]:
-        """Collect all results for the current batch from the cache and format them."""
-        assert not (return_agg_scores and return_seq), "Cannot return both aggregated scores and sequences"
+        seq_cache: Dict[Tuple[str, str, str], str],
+        predictor: "BasePredictor",
+    ) -> Costs:
+        token_counter = get_token_counter(predictor.llm)
 
-        scores = []
-        seqs = []
+        per_prompt_inputs: List[np.ndarray] = []
+        per_prompt_outputs: List[np.ndarray] = []
+
+        input_token_counts = np.array([token_counter(x) for x in xs], dtype=float)
 
         for prompt in prompts:
-            datapoint_scores = []
-            datapoint_seqs = []
+            prompt_tokens = token_counter(prompt.construct_prompt())
+            seq_token_counts: List[float] = []
             for x, y in zip(xs, ys):
-                cache_key = (prompt.construct_prompt(), x, y)
-                datapoint_score = self.eval_cache.get(cache_key)
-                if datapoint_score is None:
-                    continue
-                datapoint_scores.append(datapoint_score)
-                if return_seq:
-                    datapoint_seqs.append(self.seq_cache.get(cache_key, ""))
-            scores.append(datapoint_scores)
-            if return_seq:
-                seqs.append(datapoint_seqs)
+                cache_key = self._cache_key(prompt, x, str(y))
+                seq_text = seq_cache.get(cache_key, "")
+                seq_token_counts.append(token_counter(seq_text))
 
-        if return_agg_scores:
-            agg_scores = [np.nanmean(s).item() for s in scores]
-            return agg_scores
+            prompt_input_tokens = prompt_tokens + input_token_counts
+            output_token_counts = np.maximum(np.array(seq_token_counts, dtype=float) - input_token_counts, 0.0)
 
-        return scores if not return_seq else (scores, seqs)
+            per_prompt_inputs.append(np.asarray(prompt_input_tokens, dtype=float))
+            per_prompt_outputs.append(output_token_counts)
+
+        inputs_array = np.vstack(per_prompt_inputs)
+        outputs_array = np.vstack(per_prompt_outputs)
+
+        agg_input_tokens = inputs_array.mean(axis=1) if inputs_array.size else np.array([])
+        agg_output_tokens = outputs_array.mean(axis=1) if outputs_array.size else np.array([])
+
+        return Costs(
+            input_tokens=inputs_array,
+            output_tokens=outputs_array,
+            agg_input_tokens=agg_input_tokens,
+            agg_output_tokens=agg_output_tokens,
+        )
 
     @abstractmethod
-    def _evaluate(self, xs: List[str], ys: List[str], preds: List[str]) -> List[float]:
+    def _evaluate(self, xs: List[str], ys: List[str], preds: List[str]) -> np.ndarray:
         """Abstract method to calculate the score for a predictions.
 
         This method should be implemented by subclasses based on their specific evaluation logic.
         """
         raise NotImplementedError
 
-    @overload
-    def evaluate(
-        self,
-        prompts: List[Prompt],
-        predictor: "BasePredictor",
-        system_prompts: Optional[Union[str, List[str]]] = None,
-        return_agg_scores: Literal[True] = True,
-        return_seq: Literal[False] = False,
-        eval_strategy: Optional["EvalStrategy"] = None,
-        return_costs: Literal[False] = False,
-    ) -> List[float]:
-        ...
-
-    @overload
-    def evaluate(
-        self,
-        prompts: List[Prompt],
-        predictor: "BasePredictor",
-        system_prompts: Optional[Union[str, List[str]]] = None,
-        return_agg_scores: Literal[False] = False,
-        return_seq: Literal[False] = False,
-        eval_strategy: Optional["EvalStrategy"] = None,
-        return_costs: Literal[False] = False,
-    ) -> List[List[float]]:
-        ...
-
-    @overload
-    def evaluate(
-        self,
-        prompts: List[Prompt],
-        predictor: "BasePredictor",
-        system_prompts: Optional[Union[str, List[str]]] = None,
-        return_agg_scores: Literal[False] = False,
-        return_seq: Literal[True] = True,
-        eval_strategy: Optional["EvalStrategy"] = None,
-        return_costs: Literal[False] = False,
-    ) -> Tuple[List[List[float]], List[List[str]]]:
-        ...
-
-    @overload
-    def evaluate(
-        self,
-        prompts: Prompt,
-        predictor: "BasePredictor",
-        system_prompts: Optional[Union[str, List[str]]] = None,
-        return_agg_scores: Literal[True] = True,
-        return_seq: Literal[False] = False,
-        eval_strategy: Optional["EvalStrategy"] = None,
-        return_costs: Literal[False] = False,
-    ) -> List[float]:
-        ...
-
-    @overload
-    def evaluate(
-        self,
-        prompts: Prompt,
-        predictor: "BasePredictor",
-        system_prompts: Optional[Union[str, List[str]]] = None,
-        return_agg_scores: Literal[False] = False,
-        return_seq: Literal[False] = False,
-        eval_strategy: Optional["EvalStrategy"] = None,
-        return_costs: Literal[False] = False,
-    ) -> List[List[float]]:
-        ...
-
-    @overload
-    def evaluate(
-        self,
-        prompts: Prompt,
-        predictor: "BasePredictor",
-        system_prompts: Optional[Union[str, List[str]]] = None,
-        return_agg_scores: Literal[False] = False,
-        return_seq: Literal[True] = True,
-        eval_strategy: Optional["EvalStrategy"] = None,
-        return_costs: Literal[False] = False,
-    ) -> Tuple[List[List[float]], List[List[str]]]:
-        ...
-
-    @overload
-    def evaluate(
-        self,
-        prompts: List[Prompt],
-        predictor: "BasePredictor",
-        system_prompts: Optional[Union[str, List[str]]] = None,
-        return_agg_scores: Literal[True] = True,
-        return_seq: Literal[False] = False,
-        eval_strategy: Optional["EvalStrategy"] = None,
-        return_costs: Literal[True] = True,
-    ) -> Tuple[List[float], List[float], List[float]]:
-        ...
-
-    @overload
-    def evaluate(
-        self,
-        prompts: List[Prompt],
-        predictor: "BasePredictor",
-        system_prompts: Optional[Union[str, List[str]]] = None,
-        return_agg_scores: Literal[False] = False,
-        return_seq: Literal[False] = False,
-        eval_strategy: Optional["EvalStrategy"] = None,
-        return_costs: Literal[True] = True,
-    ) -> Tuple[List[List[float]], List[List[float]], List[List[float]]]:
-        ...
-
-    @overload
-    def evaluate(
-        self,
-        prompts: Prompt,
-        predictor: "BasePredictor",
-        system_prompts: Optional[Union[str, List[str]]] = None,
-        return_agg_scores: Literal[True] = True,
-        return_seq: Literal[False] = False,
-        eval_strategy: Optional["EvalStrategy"] = None,
-        return_costs: Literal[True] = True,
-    ) -> Tuple[List[float], List[float], List[float]]:
-        ...
-
-    @overload
-    def evaluate(
-        self,
-        prompts: Prompt,
-        predictor: "BasePredictor",
-        system_prompts: Optional[Union[str, List[str]]] = None,
-        return_agg_scores: Literal[False] = False,
-        return_seq: Literal[False] = False,
-        eval_strategy: Optional["EvalStrategy"] = None,
-        return_costs: Literal[True] = True,
-    ) -> Tuple[List[List[float]], List[List[float]], List[List[float]]]:
-        ...
-
     def evaluate(
         self,
         prompts: Union[Prompt, List[Prompt]],
         predictor: "BasePredictor",
         system_prompts: Optional[Union[str, List[str]]] = None,
-        return_agg_scores: bool = True,
-        return_seq: bool = False,
         eval_strategy: Optional["EvalStrategy"] = None,
-        return_costs: bool = False,
-    ) -> Union[
-        List[float],
-        List[List[float]],
-        Tuple[List[List[float]], List[List[str]]],
-        Tuple[List[float], List[float], List[float]],
-        Tuple[List[List[float]], List[List[float]], List[List[float]]],
-    ]:
+    ) -> EvalResult:
         """Evaluate a set of prompts using a given predictor.
 
         This method orchestrates subsampling, prediction, caching, and result collection.
-
-        Note: Cannot return both aggregated scores and sequences (assertion will fail).
+        Sequences, token costs, raw scores, and aggregated scores are always returned.
         """
-        assert not (return_agg_scores and return_seq), "Cannot return both aggregated scores and sequences"
-        assert not return_seq or not return_costs, "Token cost reporting is not supported together with sequences."
-
-        prompts = [prompts] if isinstance(prompts, Prompt) else prompts
+        prompts_list: List[Prompt] = [prompts] if isinstance(prompts, Prompt) else list(prompts)
         eval_strategy = eval_strategy or self.eval_strategy
         xs, ys = self.subsample(eval_strategy=eval_strategy)
-        batches = self._prepare_batch(prompts, xs, ys, eval_strategy=eval_strategy)
-        (prompts_to_evaluate, xs_to_evaluate, ys_to_evaluate) = ([], [], []) if not batches else zip(*batches)
+        (
+            prompts_to_evaluate,
+            xs_to_evaluate,
+            ys_to_evaluate,
+            cache_keys,
+        ) = self._prepare_batch(prompts_list, xs, ys, eval_strategy=eval_strategy)
 
-        if prompts_to_evaluate:
-            preds_seqs = predictor.predict(
-                prompts=list(prompts_to_evaluate),
-                xs=list(xs_to_evaluate),
-                system_prompts=system_prompts,
-                return_seq=return_seq,
-            )
-        else:
-            preds_seqs = ([], []) if return_seq else []
-
-        seqs: List[str] = []
-        if return_seq:
-            preds, seqs = preds_seqs if isinstance(preds_seqs, tuple) else (preds_seqs, [])
-        else:
-            preds = cast(List[str], preds_seqs)
-
-        scores: List[float] = self._evaluate(list(xs_to_evaluate), list(ys_to_evaluate), preds)
-        for i, cache_key in enumerate(batches):
-            self.eval_cache[cache_key] = scores[i]
-            if return_seq:
-                self.seq_cache[cache_key] = seqs[i]
-
-        agg_scores = self._collect_results_from_cache(
-            prompts,
-            xs,
-            ys,
-            return_agg_scores,
-            return_seq,
+        preds, pred_seqs = predictor.predict(
+            prompts=prompts_to_evaluate,
+            xs=xs_to_evaluate,
+            system_prompts=system_prompts,
         )
 
-        if not return_costs:
-            return agg_scores
+        scores = self._evaluate(xs_to_evaluate, ys_to_evaluate, preds)
+        for i, cache_key in enumerate(cache_keys):
+            self.eval_cache[cache_key] = scores[i]
+            self.seq_cache[cache_key] = str(pred_seqs[i])
 
-        token_counter = get_token_counter(predictor.llm)
+        scores, agg_scores, seqs = self._collect_results_from_cache(
+            prompts_list,
+            xs,
+            ys,
+        )
 
-        per_prompt_inputs: List[List[float]] = []
-        per_prompt_outputs: List[List[float]] = []
+        costs = self._compute_costs(prompts_list, xs, ys, self.seq_cache, predictor)
 
-        input_token_counts = [float(token_counter(x)) for x in xs]
-
-        for idx, prompt in enumerate(prompts):
-            prompt_tokens = float(token_counter(prompt.construct_prompt()))
-            start = idx * len(xs)
-            end = (idx + 1) * len(xs)
-            preds_for_prompt = preds[start:end]
-            output_token_counts = [float(token_counter(p)) for p in preds_for_prompt]
-
-            prompt_input_tokens = [prompt_tokens + input_toks for input_toks in input_token_counts]
-            per_prompt_inputs.append(prompt_input_tokens)
-            per_prompt_outputs.append(output_token_counts)
-
-        if return_agg_scores:
-            agg_scores_list = cast(List[float], agg_scores)
-            per_prompt_inputs_mean = [float(np.mean(tokens)) for tokens in per_prompt_inputs]
-            per_prompt_outputs_mean = [float(np.mean(tokens)) for tokens in per_prompt_outputs]
-            return agg_scores_list, per_prompt_inputs_mean, per_prompt_outputs_mean
-
-        score_matrix = cast(List[List[float]], agg_scores)
-        return score_matrix, per_prompt_inputs, per_prompt_outputs
+        return EvalResult(
+            scores=scores,
+            agg_scores=agg_scores,
+            sequences=seqs,
+            costs=costs,
+        )
 
     def pop_datapoints(self, n: Optional[int] = None, frac: Optional[float] = None) -> pd.DataFrame:
         """Pop a number of datapoints from the dataset.

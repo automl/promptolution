@@ -124,10 +124,12 @@ def run_evaluation(
     logger.warning("📊 Starting evaluation...")
     if isinstance(prompts[0], str):
         str_prompts = cast(List[str], prompts)
-        prompts = [Prompt(p) for p in str_prompts]
+        prompt_objs = [Prompt(p) for p in str_prompts]
     else:
         str_prompts = [p.construct_prompt() for p in cast(List[Prompt], prompts)]
-    scores = task.evaluate(prompts, predictor, eval_strategy="full")
+        prompt_objs = cast(List[Prompt], prompts)
+    results = task.evaluate(prompt_objs, predictor, eval_strategy="full")
+    scores = results.agg_scores.tolist()
     df = pd.DataFrame(dict(prompt=str_prompts, score=scores))
     df = df.sort_values("score", ascending=False, ignore_index=True)
 

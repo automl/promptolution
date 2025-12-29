@@ -24,7 +24,9 @@ def test_reward_task_evaluate_with_return_seq(mock_reward_task, mock_predictor):
     """Test the evaluate method with return_seq=True for RewardTask."""
     prompts = [Prompt("Generate a short text:")]
 
-    scores, seqs = mock_reward_task.evaluate(prompts, mock_predictor, return_seq=True, return_agg_scores=False)
+    result = mock_reward_task.evaluate(prompts, mock_predictor)
 
-    assert len(scores) == 1
-    assert len(seqs) == 1
+    assert result.scores.shape[0] == 1
+    assert result.sequences is not None
+    assert result.sequences.shape[0] == 1
+    assert result.costs is not None

@@ -1,5 +1,6 @@
 """Module for judge tasks."""
 
+import numpy as np
 import pandas as pd
 
 from typing import TYPE_CHECKING, List, Optional
@@ -122,7 +123,7 @@ class JudgeTask(BaseTask):
         prompt = prompt.replace("{task}", task_description).replace("{input}", x).replace("{prediction}", pred)
         return prompt
 
-    def _evaluate(self, xs: List[str], ys: List[str], preds: List[str]) -> List[float]:
+    def _evaluate(self, xs: List[str], ys: List[str], preds: List[str]) -> np.ndarray:
         """Calculate the score for a single prediction using the LLM judge."""
         prompts: List[str] = []
         for x, y, pred in zip(xs, ys, preds):
@@ -145,4 +146,4 @@ class JudgeTask(BaseTask):
 
             scores.append(score)
 
-        return scores
+        return np.asarray(scores, dtype=float)

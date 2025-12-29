@@ -37,8 +37,7 @@ class BasePredictor(ABC):
         prompts: Union[str, List[str]],
         xs: List[str],
         system_prompts: Optional[Union[str, List[str]]] = None,
-        return_seq: bool = False,
-    ) -> Union[List[str], Tuple[List[str], List[str]]]:
+    ) -> Tuple[List[str], List[str]]:
         """Abstract method to make predictions based on prompts and input data.
 
         Args:
@@ -57,11 +56,8 @@ class BasePredictor(ABC):
         outputs = self.llm.get_response(inputs, system_prompts=system_prompts)
         preds = self._extract_preds(outputs)
 
-        if return_seq:
-            seqs = [f"{x}\n{out}" for x, out in zip(xs, outputs)]
-            return preds, seqs
-
-        return preds
+        seqs = [f"{x}\n{out}" for x, out in zip(xs, outputs)]
+        return preds, seqs
 
     @abstractmethod
     def _extract_preds(self, preds: List[str]) -> List[str]:

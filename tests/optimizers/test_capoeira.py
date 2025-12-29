@@ -1,8 +1,10 @@
 from unittest.mock import MagicMock, patch
 
+import numpy as np
 import pandas as pd
 
 from promptolution.optimizers.capoeira import Capoeira
+from promptolution.tasks.base_task import Costs, EvalResult
 from promptolution.utils.capo_utils import perform_crossover, perform_mutation
 from promptolution.utils.prompt import Prompt
 from promptolution.utils.templates import CAPO_CROSSOVER_TEMPLATE, CAPO_FEWSHOT_TEMPLATE, CAPO_MUTATION_TEMPLATE
@@ -48,7 +50,19 @@ def test_capoeira_selection_prefers_better_score(mock_meta_llm, mock_predictor, 
         df_few_shots=mock_df,
     )
     candidates = [Prompt("short"), Prompt("longer prompt")]
-    optimizer.task.evaluate = MagicMock(return_value=([0.1, 0.9], [len("short"), len("longer prompt")], [5, 5]))  # second candidate is better
+    optimizer.task.evaluate = MagicMock(
+        return_value=EvalResult(
+            scores=np.array([[0.4], [0.9]], dtype=float),
+            agg_scores=np.array([0.4, 0.9], dtype=float),
+            sequences=np.array([["s1"], ["s2"]], dtype=object),
+            costs=Costs(
+                input_tokens=np.array([[1.0], [1.0]], dtype=float),
+                output_tokens=np.array([[0.0], [0.0]], dtype=float),
+                agg_input_tokens=np.array([1.0, 1.0], dtype=float),
+                agg_output_tokens=np.array([0.0, 0.0], dtype=float),
+            ),
+        )
+    )
 
     objectives = optimizer._evaluate_candidates(candidates)
     selected, _ = optimizer._select_population(candidates, objectives)

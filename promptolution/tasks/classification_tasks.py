@@ -67,9 +67,7 @@ class ClassificationTask(BaseTask):
         )  # Ensure y values are lowercase for consistent comparison
         self.classes = np.unique(self.ys)
 
-    def _evaluate(self, xs: List[str], ys: List[str], preds: List[str]) -> List[float]:
+    def _evaluate(self, xs: List[str], ys: List[str], preds: List[str]) -> np.ndarray:
         """Calculate the score for a single prediction."""
-        scores = []
-        for pred, y in zip(preds, ys):
-            scores.append(self.metric([y], [pred]))
-        return scores
+        scores = [self.metric([y], [pred]) for pred, y in zip(preds, ys)]
+        return np.asarray(scores, dtype=float)

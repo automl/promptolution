@@ -120,24 +120,20 @@ class Capoeira(BaseOptimizer):
         self.scores = (-selected_vectors[:, 0]).tolist()
 
     def _evaluate_candidates(self, candidates: List[Prompt]) -> np.ndarray:
-        scores, input_tokens, output_tokens = self.task.evaluate(
+        result = self.task.evaluate(
             candidates,
             self.predictor,
             eval_strategy=self.task.eval_strategy,
-            return_costs=True,
-            return_seq=False,
-            return_agg_scores=True,
         )
 
-        # TODO move to evaluate method!
-        input_tokens_array = np.array(input_tokens, dtype=float)
-        output_tokens_array = np.array(output_tokens, dtype=float)
-        scores_array = np.array(scores, dtype=float)
+        scores = result.scores
+        input_tokens = result.costs.input_tokens
+        output_tokens = result.costs.output_tokens
 
         score_vectors = np.column_stack(
             [
-                -scores_array,
-                self.cost_per_input_token * input_tokens_array + self.cost_per_output_token * output_tokens_array,
+                -scores,
+                self.cost_per_input_token * input_tokens + self.cost_per_output_token * output_tokens,
             ]
         )
         return score_vectors
