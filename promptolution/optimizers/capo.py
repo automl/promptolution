@@ -128,15 +128,7 @@ class CAPO(BaseOptimizer):
             few_shots = build_few_shot_examples(
                 instruction=prompt.instruction,
                 num_examples=num_examples,
-                df_few_shots=self.df_few_shots,
-                x_column=self.task.x_column,
-                y_column=self.task.y_column,
-                predictor=self.predictor,
-                fewshot_template=CAPO_FEWSHOT_TEMPLATE,
-                target_begin_marker=self.target_begin_marker,
-                target_end_marker=self.target_end_marker,
-                check_fs_accuracy=self.check_fs_accuracy,
-                create_fs_reasoning=self.create_fs_reasoning,
+                optimizer=self,
             )
             population.append(Prompt(prompt.instruction, few_shots))
 
@@ -197,24 +189,8 @@ class CAPO(BaseOptimizer):
 
     def _step(self) -> List[Prompt]:
         """Perform a single optimization step."""
-        offsprings = perform_crossover(self.prompts, self.crossovers_per_iter, self.crossover_template, self.meta_llm)
-        mutated = perform_mutation(
-            offsprings=offsprings,
-            mutation_template=self.mutation_template,
-            upper_shots=self.upper_shots,
-            meta_llm=self.meta_llm,
-            few_shot_kwargs=dict(
-                df_few_shots=self.df_few_shots,
-                x_column=self.task.x_column,
-                y_column=self.task.y_column,
-                predictor=self.predictor,
-                fewshot_template=CAPO_FEWSHOT_TEMPLATE,
-                target_begin_marker=self.target_begin_marker,
-                target_end_marker=self.target_end_marker,
-                check_fs_accuracy=self.check_fs_accuracy,
-                create_fs_reasoning=self.create_fs_reasoning,
-            ),
-        )
+        offsprings = perform_crossover(self.prompts, optimizer=self)
+        mutated = perform_mutation(offsprings=offsprings, optimizer=self)
         combined = self.prompts + mutated
 
         self.prompts, self.scores = self._do_racing(combined, self.population_size)
