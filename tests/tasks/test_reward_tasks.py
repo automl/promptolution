@@ -29,4 +29,4 @@ def test_reward_task_evaluate_with_return_seq(mock_reward_task, mock_predictor):
     assert result.scores.shape[0] == 1
     assert result.sequences is not None
     assert result.sequences.shape[0] == 1
-    assert result.costs is not None
+    assert result.agg_input_tokens is not None

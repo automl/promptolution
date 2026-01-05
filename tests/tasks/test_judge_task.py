@@ -99,4 +99,4 @@ def test_judge_task_evaluate_with_return_seq(mock_judge_task_with_y, mock_predic
     assert seq_result.scores.shape == (3, len(mock_judge_task_with_y.xs))
     assert seq_result.sequences is not None
     assert seq_result.sequences.shape == (3, len(mock_judge_task_with_y.xs))
-    assert seq_result.costs is not None
+    assert seq_result.agg_input_tokens is not None

@@ -77,7 +77,7 @@ def test_task_evaluate_with_return_seq(mock_classification_task_with_subsampling
     assert seq_result.sequences is not None
     assert len(seq_result.sequences) == 1
     assert len(seq_result.sequences[0]) == mock_classification_task_with_subsampling.n_subsamples
-    assert seq_result.costs is not None
+    assert seq_result.agg_input_tokens is not None
 
 
 def test_task_evaluate_with_system_prompts(

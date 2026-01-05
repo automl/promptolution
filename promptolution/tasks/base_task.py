@@ -18,20 +18,10 @@ if TYPE_CHECKING:  # pragma: no cover
     from promptolution.utils.config import ExperimentConfig
 
 
-TaskType = Literal["classification", "reward", "judge"]
+TaskType = Literal["classification", "reward", "judge", "multi"]
 EvalStrategy = Literal["full", "subsample", "sequential_block", "random_block", "evaluated"]
 
 logger = get_logger(__name__)
-
-
-@dataclass
-class Costs:
-    """Token costs accounting for model inputs and outputs."""
-
-    input_tokens: np.ndarray  # shape: (n_prompts, n_datapoints)
-    output_tokens: np.ndarray  # shape: (n_prompts, n_datapoints)
-    agg_input_tokens: np.ndarray  # shape: (n_prompts,) - mean over datapoints
-    agg_output_tokens: np.ndarray  # shape: (n_prompts,) - mean over datapoints
 
 
 @dataclass
@@ -41,7 +31,10 @@ class EvalResult:
     scores: np.ndarray  # shape: (n_prompts, n_datapoints)
     agg_scores: np.ndarray  # shape: (n_prompts,) - mean over datapoints
     sequences: np.ndarray  # shape: (n_prompts, n_datapoints)
-    costs: Costs
+    input_tokens: np.ndarray  # shape: (n_prompts, n_datapoints)
+    output_tokens: np.ndarray  # shape: (n_prompts, n_datapoints)
+    agg_input_tokens: np.ndarray  # shape: (n_prompts,) - mean over datapoints
+    agg_output_tokens: np.ndarray  # shape: (n_prompts,) - mean over datapoints
 
 
 class BaseTask(ABC):
@@ -96,6 +89,8 @@ class BaseTask(ABC):
 
         self.eval_cache: Dict[Tuple[str, str, str], float] = {}  # (prompt, x, y): scores per datapoint
         self.seq_cache: Dict[Tuple[str, str, str], str] = {}  # (prompt, x, y): raw model output per datapoint
+
+        self.prompt_evaluated_blocks: Dict[str, set[int]] = {}  # prompt_str: set of evaluated block indices
 
     def subsample(self, eval_strategy: Optional["EvalStrategy"] = None) -> Tuple[List[str], List[str]]:
         """Subsample the dataset based on the specified parameters.
@@ -190,7 +185,7 @@ class BaseTask(ABC):
         ys: List[str],
         seq_cache: Dict[Tuple[str, str, str], str],
         predictor: "BasePredictor",
-    ) -> Costs:
+    ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
         token_counter = get_token_counter(predictor.llm)
 
         per_prompt_inputs: List[np.ndarray] = []
@@ -218,12 +213,7 @@ class BaseTask(ABC):
         agg_input_tokens = inputs_array.mean(axis=1) if inputs_array.size else np.array([])
         agg_output_tokens = outputs_array.mean(axis=1) if outputs_array.size else np.array([])
 
-        return Costs(
-            input_tokens=inputs_array,
-            output_tokens=outputs_array,
-            agg_input_tokens=agg_input_tokens,
-            agg_output_tokens=agg_output_tokens,
-        )
+        return inputs_array, outputs_array, agg_input_tokens, agg_output_tokens
 
     @abstractmethod
     def _evaluate(self, xs: List[str], ys: List[str], preds: List[str]) -> np.ndarray:
@@ -272,13 +262,22 @@ class BaseTask(ABC):
             ys,
         )
 
-        costs = self._compute_costs(prompts_list, xs, ys, self.seq_cache, predictor)
+        # Record evaluated block for block strategies
+        for prompt in prompts_list:
+            self.prompt_evaluated_blocks.setdefault(str(prompt), set()).add(self.block_idx)
+
+        input_tokens, output_tokens, agg_input_tokens, agg_output_tokens = self._compute_costs(
+            prompts_list, xs, ys, self.seq_cache, predictor
+        )
 
         return EvalResult(
             scores=scores,
             agg_scores=agg_scores,
             sequences=seqs,
-            costs=costs,
+            input_tokens=input_tokens,
+            output_tokens=output_tokens,
+            agg_input_tokens=agg_input_tokens,
+            agg_output_tokens=agg_output_tokens,
         )
 
     def pop_datapoints(self, n: Optional[int] = None, frac: Optional[float] = None) -> pd.DataFrame:
@@ -344,3 +343,15 @@ class BaseTask(ABC):
         if "block" not in self.eval_strategy:
             raise ValueError("Block reset is only valid for block subsampling.")
         self.block_idx = 0
+        
+    def set_block_idx(self, idx: int) -> None:
+        """Set the block index for subsampling (block strategies only)."""
+        if "block" not in self.eval_strategy:
+            raise ValueError("Block assignment is only valid for block subsampling.")
+        if self.n_blocks > 0:
+            self.block_idx = idx % self.n_blocks
+        else:
+            self.block_idx = 0
+
+    def get_evaluated_blocks(self, prompts: List[Prompt]) -> Dict[str, set[int]]:
+        return {str(p): set(self.prompt_evaluated_blocks.get(str(p), set())) for p in prompts}

@@ -9,7 +9,7 @@ from tests.mocks.mock_predictor import MockPredictor
 from tests.mocks.mock_task import MockTask
 
 from promptolution.helpers import run_evaluation, run_experiment, run_optimization
-from promptolution.tasks.base_task import Costs, EvalResult
+from promptolution.tasks.base_task import EvalResult
 from promptolution.utils import ExperimentConfig
 from promptolution.utils.prompt import Prompt
 
@@ -205,12 +205,10 @@ def test_run_evaluation(mock_get_task, mock_get_predictor, mock_get_llm, sample_
         scores=np.array([[0.9], [0.8], [0.7]], dtype=float),
         agg_scores=np.array([0.9, 0.8, 0.7], dtype=float),
         sequences=np.array([["s1"], ["s2"], ["s3"]], dtype=object),
-        costs=Costs(
-            input_tokens=np.array([[10.0], [10.0], [10.0]], dtype=float),
-            output_tokens=np.array([[5.0], [5.0], [5.0]], dtype=float),
-            agg_input_tokens=np.array([10.0, 10.0, 10.0], dtype=float),
-            agg_output_tokens=np.array([5.0, 5.0, 5.0], dtype=float),
-        ),
+        input_tokens=np.array([[10.0], [10.0], [10.0]], dtype=float),
+        output_tokens=np.array([[5.0], [5.0], [5.0]], dtype=float),
+        agg_input_tokens=np.array([10.0, 10.0, 10.0], dtype=float),
+        agg_output_tokens=np.array([5.0, 5.0, 5.0], dtype=float),
     )
 
     # Run the function
@@ -295,12 +293,10 @@ def test_helpers_integration(sample_df, experiment_config):
                 scores=np.array([[0.9], [0.8]], dtype=float),
                 agg_scores=np.array([0.9, 0.8], dtype=float),
                 sequences=np.array([["s1"], ["s2"]], dtype=object),
-                costs=Costs(
-                    input_tokens=np.array([[10.0], [10.0]], dtype=float),
-                    output_tokens=np.array([[5.0], [5.0]], dtype=float),
-                    agg_input_tokens=np.array([10.0, 10.0], dtype=float),
-                    agg_output_tokens=np.array([5.0, 5.0], dtype=float),
-                ),
+                input_tokens=np.array([[10.0], [10.0]], dtype=float),
+                output_tokens=np.array([[5.0], [5.0]], dtype=float),
+                agg_input_tokens=np.array([10.0, 10.0], dtype=float),
+                agg_output_tokens=np.array([5.0, 5.0], dtype=float),
             )
         )
 
