@@ -102,6 +102,10 @@ class Capoeira(BaseOptimizer):
             self.target_begin_marker = ""
             self.target_end_marker = ""
 
+    @property
+    def prompts(self) -> List[Prompt]:
+        return self.incumbents + self.challengers
+    
     def _pre_optimization_loop(self) -> None:
         population: List[Prompt] = []
         for prompt in self.prompts:
@@ -113,35 +117,29 @@ class Capoeira(BaseOptimizer):
             )
             population.append(Prompt(prompt.instruction, few_shots))
 
-        self.prompts = population
-        # TODO: align placement of the logic with capo
         self.max_prompt_length = (
-            max(self.token_counter(p.construct_prompt()) for p in self.prompts) if self.prompts else 1
+            max(self.token_counter(p.construct_prompt()) for p in population) if population else 1
         )
-        init_result = self.task.evaluate(prompts=self.prompts, predictor=self.predictor)
+        init_result = self.task.evaluate(population, self.predictor)
         initial_vectors = self._get_objective_vectors(init_result) #TODO rename
         fronts = self._non_dominated_sort(initial_vectors)
-        self.incumbents = [self.prompts[i] for i in fronts[0]]
-        self.challengers = [self.prompts[i] for front in fronts[1:] for i in front]
+        self.incumbents = [population[i] for i in fronts[0]]
+        self.challengers = [population[i] for front in fronts[1:] for i in front]
 
         # keep self.prompts as a "view" if base class expects it
-        self.prompts = self.incumbents + self.challengers
         self.scores = initial_vectors[:, 0].tolist()
 
     
     def _step(self) -> List[Prompt]:
         # 1) generate challengers (random parent selection happens inside perform_crossover)
-        offsprings = perform_crossover(self.prompts, optimizer=self)
-        new_challengers = perform_mutation(offsprings=offsprings, optimizer=self)
+        offsprings = perform_crossover(self.prompts, self)
+        new_challengers = perform_mutation(offsprings, self)
 
         # 2) intensify each challenger; after each, advance incumbents + prune
         for chal in new_challengers:
             self._do_intensification(chal)
             self._advance_one_incumbent()
             self._prune_population()
-
-        # 3) update "view" for base class / callbacks
-        self.prompts = self.incumbents + self.challengers
 
         # 4) logging scores: incumbents only (optional)
         if self.incumbents:
@@ -164,7 +162,6 @@ class Capoeira(BaseOptimizer):
         if not self.incumbents:
             self.incumbents.append(challenger)
             return
-
 
         common_block_idx = 0
         while common_block_idx is not None:
@@ -290,16 +287,11 @@ class Capoeira(BaseOptimizer):
         - Use Crowding Distance to remove the least unique incumbent.
         """
         while len(self.incumbents) + len(self.challengers) > self.population_size:
-            if self.challengers:
+            if len(self.challengers) > 0:
                 # 1. Check Heterogeneity (Fairness Check)
                 chal_blocks_map = self.task.get_evaluated_blocks(self.challengers)
                 block_sets = list(chal_blocks_map.values())
                 
-                # Ensure we have data to compare
-                if not block_sets:
-                    self.challengers.pop(random.randrange(len(self.challengers)))
-                    continue
-
                 first_set = block_sets[0]
                 # Are all challengers evaluated on the exact same set of blocks?
                 is_homogeneous = all(s == first_set for s in block_sets)
@@ -315,60 +307,51 @@ class Capoeira(BaseOptimizer):
                     victim_idx = random.choice(candidates)
                     
                     self.challengers.pop(victim_idx)
+                    continue
                 
-                else:
-                    # CASE B: Homogeneous (Fair comparison).
-                    # Use NDS + Crowding Distance.
-                    
-                    # Get objective vectors for all challengers (safe because blocks are identical)
-                    res = self.task.evaluate(
-                        self.challengers, 
-                        self.predictor, 
-                        eval_strategy="evaluated"
-                    )
-                    vecs = self._get_objective_vectors(res)
-                    
-                    # Perform Non-Dominated Sort
-                    fronts = self._non_dominated_sort(vecs)
-                    
-                    # Select the worst front (the last one)
-                    worst_front_indices = fronts[-1]
-                    
-                    if len(worst_front_indices) == 1:
-                        # Only one candidate in the worst front -> prune it
-                        victim_idx = worst_front_indices[0]
-                    else:
-                        # Multiple candidates in worst front -> Prune by Crowding Distance
-                        # We want to keep diversity (high CD), so we remove low CD.
-                        worst_front_vecs = vecs[worst_front_indices]
-                        dists = self._calculate_crowding_distance(worst_front_vecs)
-                        
-                        # Find index relative to the worst front list
-                        local_worst_idx = int(np.argmin(dists))
-                        # Map back to the main challenger list index
-                        victim_idx = worst_front_indices[local_worst_idx]
-                    
-                    self.challengers.pop(victim_idx)
-
-            else:
-                # --- PRUNE FROM INCUMBENTS ---
-                # Fallback: If we only have incumbents, remove the least unique one.
-                if len(self.incumbents) <= 1:
-                    break
+                # CASE B: Homogeneous (Fair comparison).
+                # Use NDS + Crowding Distance.
                 
+                # Get objective vectors for all challengers (safe because blocks are identical)
                 res = self.task.evaluate(
-                    self.incumbents, 
+                    self.challengers, 
                     self.predictor, 
                     eval_strategy="evaluated"
                 )
                 vecs = self._get_objective_vectors(res)
-                dists = self._calculate_crowding_distance(vecs)
                 
-                # Remove the one with the smallest crowding distance
-                victim_idx = int(np.argmin(dists))
-                self.incumbents.pop(victim_idx)
+                # Perform Non-Dominated Sort
+                fronts = self._non_dominated_sort(vecs)
+                
+                # Select the worst front (the last one)
+                worst_front_indices = fronts[-1]
+                
+                # Multiple candidates in worst front -> Prune by Crowding Distance
+                # We want to keep diversity (high CD), so we remove low CD.
+                worst_front_vecs = vecs[worst_front_indices]
+                dists = self._calculate_crowding_distance(worst_front_vecs)
+                
+                # Find index relative to the worst front list
+                local_worst_idx = int(np.argmin(dists))
+                # Map back to the main challenger list index
+                victim_idx = worst_front_indices[local_worst_idx]
+                
+                self.challengers.pop(victim_idx)
+                continue
 
-        self.prompts = self.incumbents + self.challengers
+            # --- PRUNE FROM INCUMBENTS ---
+            # Fallback: If we only have incumbents, remove the least unique one.
+            res = self.task.evaluate(
+                self.incumbents, 
+                self.predictor, 
+                eval_strategy="evaluated"
+            )
+            vecs = self._get_objective_vectors(res)
+            dists = self._calculate_crowding_distance(vecs)
+            
+            # Remove the one with the smallest crowding distance
+            victim_idx = int(np.argmin(dists))
+            self.incumbents.pop(victim_idx)
 
 
     def _non_dominated_sort(self, obj_vectors: np.ndarray) -> List[List[int]]:
