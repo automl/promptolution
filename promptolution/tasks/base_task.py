@@ -70,6 +70,7 @@ class BaseTask(ABC):
             )
         self.x_column: str = x_column
         self.y_column: Optional[str] = y_column
+        self.task_type: TaskType | None = None
         self.task_description: Optional[str] = task_description
         self.n_subsamples: int = n_subsamples
         self.eval_strategy: EvalStrategy = eval_strategy

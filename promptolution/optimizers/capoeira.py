@@ -28,6 +28,8 @@ logger = get_logger(__name__)
 class Capoeira(BaseOptimizer):
     """Multi-objective variant of CAPO with Pareto-based selection."""
 
+    supports_multi_objective = True
+
     def __init__(
         self,
         predictor: "BasePredictor",

@@ -59,6 +59,11 @@ class MultiObjectiveTask(BaseTask):
         )
         self.task_type: TaskType = "multi"
         self.tasks = tasks
+        self._scalarized_objective: bool = False
+
+    def activate_scalarized_objective(self) -> None:
+        """Force single-objective behavior by equally averaging task scores."""
+        self._scalarized_objective = True
 
     def evaluate(  # type: ignore
         self,
@@ -66,7 +71,7 @@ class MultiObjectiveTask(BaseTask):
         predictor,
         system_prompts: Optional[str | List[str]] = None,
         eval_strategy: Optional[EvalStrategy] = None,
-    ) -> MultiObjectiveEvalResult:
+    ) -> MultiObjectiveEvalResult | EvalResult:
         """Run prediction once, then score via each task's _evaluate."""
         prompts_list: List[Prompt] = [prompts] if isinstance(prompts, Prompt) else list(prompts)
         strategy = eval_strategy or self.eval_strategy
@@ -150,16 +155,28 @@ class MultiObjectiveTask(BaseTask):
 
         # Mirror evaluated block bookkeeping using the first task for parity with BaseTask.
         first_task = self.tasks[0]
+        first_result = per_task_results[0]
         self.prompt_evaluated_blocks = {str(p): first_task.prompt_evaluated_blocks[str(p)] for p in prompts_list}
+
+        if self._scalarized_objective:
+            return EvalResult(
+                scores=np.mean(stacked_scores, axis=0),
+                agg_scores=np.mean(stacked_agg_scores, axis=0),
+                sequences=first_result.sequences,
+                input_tokens=first_result.input_tokens,
+                output_tokens=first_result.output_tokens,
+                agg_input_tokens=first_result.agg_input_tokens,
+                agg_output_tokens=first_result.agg_output_tokens,
+            )
 
         return MultiObjectiveEvalResult(
             scores=stacked_scores,
             agg_scores=stacked_agg_scores,
-            sequences=per_task_results[0].sequences,
-            input_tokens=per_task_results[0].input_tokens,
-            output_tokens=per_task_results[0].output_tokens,
-            agg_input_tokens=per_task_results[0].agg_input_tokens,
-            agg_output_tokens=per_task_results[0].agg_output_tokens,
+            sequences=first_result.sequences,
+            input_tokens=first_result.input_tokens,
+            output_tokens=first_result.output_tokens,
+            agg_input_tokens=first_result.agg_input_tokens,
+            agg_output_tokens=first_result.agg_output_tokens,
         )
 
     def _evaluate(self, xs, ys, preds):  # pragma: no cover
