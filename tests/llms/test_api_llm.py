@@ -79,6 +79,7 @@ def test_ainvoke_with_retries_recovers(monkeypatch):
     good = SimpleNamespace(choices=[SimpleNamespace(message=SimpleNamespace(content="done"))])
     api = _make_api_stub(max_retries=2, retry_base_delay_s=0)
     api._ainvoke_once = AsyncMock(side_effect=[Exception("fail"), good])
+
     async def _sleep(_):
         return None
 
@@ -93,6 +94,7 @@ def test_ainvoke_with_retries_recovers(monkeypatch):
 def test_ainvoke_with_retries_exhausts(monkeypatch):
     api = _make_api_stub(max_retries=1, retry_base_delay_s=0)
     api._ainvoke_once = AsyncMock(side_effect=[Exception("boom"), Exception("boom2")])
+
     async def _sleep(_):
         return None
 

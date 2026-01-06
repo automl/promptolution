@@ -3,13 +3,14 @@ from unittest.mock import patch
 import numpy as np
 import pandas as pd
 
+from tests.mocks.mock_task import MockTask
+
 from promptolution.optimizers.capoeira import Capoeira
 from promptolution.tasks.base_task import EvalResult
 from promptolution.tasks.multi_objective_task import MultiObjectiveEvalResult, MultiObjectiveTask
 from promptolution.utils.capo_utils import perform_crossover, perform_mutation
 from promptolution.utils.prompt import Prompt
 from promptolution.utils.templates import CAPO_CROSSOVER_TEMPLATE, CAPO_MUTATION_TEMPLATE
-from tests.mocks.mock_task import MockTask
 
 
 def test_capoeira_initialization(mock_meta_llm, mock_predictor, initial_prompts, mock_task, mock_df):
@@ -268,7 +269,9 @@ def test_capoeira_step_invokes_hooks(mock_meta_llm, mock_predictor, mock_df):
         "promptolution.optimizers.capoeira.perform_mutation", return_value=[Prompt("m1")]
     ), patch.object(optimizer, "_do_intensification") as do_int, patch.object(
         optimizer, "_advance_one_incumbent"
-    ) as adv_inc, patch.object(optimizer, "_select_survivors") as sel:
+    ) as adv_inc, patch.object(
+        optimizer, "_select_survivors"
+    ) as sel:
         optimizer._step()
 
     assert do_int.call_count == 1
@@ -319,9 +322,7 @@ def test_capoeira_do_intensification_bootstrap_no_common_blocks(mock_meta_llm, m
         return EvalResult(
             scores=np.zeros((n, 1)),
             agg_scores=np.zeros(n),
-            sequences=np.array([[
-                ""
-            ] for _ in range(n)], dtype=object),
+            sequences=np.array([[""] for _ in range(n)], dtype=object),
             input_tokens=np.zeros((n, 1)),
             output_tokens=np.zeros((n, 1)),
             agg_input_tokens=np.zeros(n),

@@ -1,11 +1,10 @@
-import pandas as pd
 import numpy as np
-
+import pandas as pd
 import pytest
 
+from tests.mocks.mock_llm import MockLLM
 from tests.mocks.mock_predictor import MockPredictor
 from tests.mocks.mock_task import MockTask
-from tests.mocks.mock_llm import MockLLM
 
 from promptolution.tasks.multi_objective_task import MultiObjectiveTask
 from promptolution.utils.prompt import Prompt

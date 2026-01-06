@@ -19,7 +19,7 @@ from promptolution.optimizers.base_optimizer import BaseOptimizer
 from promptolution.utils.capo_utils import build_few_shot_examples, perform_crossover, perform_mutation
 from promptolution.utils.logging import get_logger
 from promptolution.utils.prompt import Prompt, sort_prompts_by_scores
-from promptolution.utils.templates import CAPO_CROSSOVER_TEMPLATE, CAPO_FEWSHOT_TEMPLATE, CAPO_MUTATION_TEMPLATE
+from promptolution.utils.templates import CAPO_CROSSOVER_TEMPLATE, CAPO_MUTATION_TEMPLATE
 from promptolution.utils.test_statistics import get_test_statistic_func
 from promptolution.utils.token_counter import get_token_counter
 

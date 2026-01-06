@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Dict, List, Optional, Tuple
 
 import numpy as np
+
+from typing import Dict, List, Optional, Tuple
 
 from promptolution.tasks.base_task import BaseTask, EvalResult, EvalStrategy, TaskType
 from promptolution.utils.prompt import Prompt
@@ -13,9 +14,11 @@ from promptolution.utils.prompt import Prompt
 
 @dataclass
 class MultiObjectiveEvalResult:
+    """Container for per-task evaluation outputs in multi-objective runs."""
+
     scores: List[np.ndarray]
     agg_scores: List[np.ndarray]
-    sequences: np.ndarray  
+    sequences: np.ndarray
     input_tokens: np.ndarray
     output_tokens: np.ndarray
     agg_input_tokens: np.ndarray
@@ -30,6 +33,7 @@ class MultiObjectiveTask(BaseTask):
         tasks: List[BaseTask],
         eval_strategy: Optional[EvalStrategy] = None,
     ) -> None:
+        """Initialize with a list of tasks sharing subsampling and seed settings."""
         if not tasks:
             raise ValueError("tasks must be a non-empty list")
 
@@ -64,7 +68,6 @@ class MultiObjectiveTask(BaseTask):
         eval_strategy: Optional[EvalStrategy] = None,
     ) -> MultiObjectiveEvalResult:
         """Run prediction once, then score via each task's _evaluate."""
-
         prompts_list: List[Prompt] = [prompts] if isinstance(prompts, Prompt) else list(prompts)
         strategy = eval_strategy or self.eval_strategy
 
@@ -124,7 +127,11 @@ class MultiObjectiveTask(BaseTask):
 
             # Record evaluated block for block strategies
             for prompt in prompts_list:
-                task.prompt_evaluated_blocks.setdefault(str(prompt), set()).add(task.block_idx)
+                block_set = task.prompt_evaluated_blocks.setdefault(str(prompt), set())
+                if isinstance(task.block_idx, list):
+                    block_set.update(task.block_idx)
+                else:
+                    block_set.add(task.block_idx)
 
             per_task_results.append(
                 EvalResult(
@@ -143,9 +150,7 @@ class MultiObjectiveTask(BaseTask):
 
         # Mirror evaluated block bookkeeping using the first task for parity with BaseTask.
         first_task = self.tasks[0]
-        self.prompt_evaluated_blocks = {
-            str(p): first_task.prompt_evaluated_blocks[str(p)] for p in prompts_list
-        }
+        self.prompt_evaluated_blocks = {str(p): first_task.prompt_evaluated_blocks[str(p)] for p in prompts_list}
 
         return MultiObjectiveEvalResult(
             scores=stacked_scores,

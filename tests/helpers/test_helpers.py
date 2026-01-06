@@ -352,10 +352,10 @@ def test_helpers_integration(sample_df, experiment_config):
 
 def test_get_llm_variants(monkeypatch):
     def factory(model_name=None, config=None, **kwargs):
-        created['name'] = model_name or kwargs.get("model_id")
-        created['config'] = config
+        created["name"] = model_name or kwargs.get("model_id")
+        created["config"] = config
         return MockLLM()
-    
+
     created = {}
 
     monkeypatch.setattr("promptolution.helpers.LocalLLM", factory)
@@ -366,15 +366,15 @@ def test_get_llm_variants(monkeypatch):
     cfg.model_id = "local-foo"
     res = get_llm(config=cfg)
     assert isinstance(res, MockLLM)
-    assert created['name'] == "foo"
+    assert created["name"] == "foo"
 
     cfg.model_id = "vllm-bar"
     res = get_llm(config=cfg)
-    assert created['name'] == "bar"
+    assert created["name"] == "bar"
 
     cfg.model_id = "api-model"
     res = get_llm(config=cfg)
-    assert created['name'] == "api-model"
+    assert created["name"] == "api-model"
 
     with pytest.raises(ValueError):
         get_llm()

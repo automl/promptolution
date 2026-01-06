@@ -6,9 +6,9 @@ import random
 
 from typing import List
 
-from promptolution.utils.templates import CAPO_FEWSHOT_TEMPLATE
 from promptolution.utils.formatting import extract_from_tag
 from promptolution.utils.prompt import Prompt
+from promptolution.utils.templates import CAPO_FEWSHOT_TEMPLATE
 
 
 def build_few_shot_examples(
@@ -60,7 +60,9 @@ def perform_crossover(
     for _ in range(optimizer.crossovers_per_iter):
         mother, father = parents if len(parents) == 2 else random.sample(parents, 2)
         crossover_prompt = (
-            optimizer.crossover_template.replace("<mother>", mother.instruction).replace("<father>", father.instruction).strip()
+            optimizer.crossover_template.replace("<mother>", mother.instruction)
+            .replace("<father>", father.instruction)
+            .strip()
         )
         crossover_prompts.append(crossover_prompt)
         combined_few_shots = mother.few_shots + father.few_shots

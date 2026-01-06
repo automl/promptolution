@@ -281,7 +281,9 @@ def get_exemplar_selector(
         raise ValueError(f"Unknown exemplar selector: {name}")
 
 
-def get_predictor(downstream_llm: Optional["BaseLLM"] = None, type: "PredictorType" = "marker", *args, **kwargs) -> "BasePredictor":
+def get_predictor(
+    downstream_llm: Optional["BaseLLM"] = None, type: "PredictorType" = "marker", *args, **kwargs
+) -> "BasePredictor":
     """Create and return a predictor instance.
 
     This function supports three types of predictors:

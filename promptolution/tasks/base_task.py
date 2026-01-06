@@ -63,7 +63,11 @@ class BaseTask(ABC):
             seed (int): Random seed for reproducibility.
             config (ExperimentConfig, optional): Configuration for the task, overriding defaults.
         """
-        self.df: pd.DataFrame = df
+        self.df = df.drop_duplicates(subset=[x_column])
+        if len(self.df) != len(df):
+            logger.warning(
+                f"Duplicate entries detected for x_column '{x_column}'; dropped {len(df) - len(self.df)} rows to enforce uniqueness."
+            )
         self.x_column: str = x_column
         self.y_column: Optional[str] = y_column
         self.task_description: Optional[str] = task_description
@@ -75,10 +79,10 @@ class BaseTask(ABC):
         if config is not None:
             config.apply_to(self)
 
-        self.xs: List[str] = df[self.x_column].values.astype(str).tolist()
+        self.xs: List[str] = self.df[self.x_column].values.astype(str).tolist()
         self.has_y: bool = y_column is not None
         if self.has_y and y_column is not None:
-            self.ys: List[str] = df[y_column].values.astype(str).tolist()
+            self.ys: List[str] = self.df[y_column].values.astype(str).tolist()
         else:
             # If no y_column is provided, create a dummy y array
             self.ys = [""] * len(self.xs)
@@ -356,7 +360,7 @@ class BaseTask(ABC):
         if "block" not in self.eval_strategy:
             raise ValueError("Block reset is only valid for block subsampling.")
         self.block_idx = 0
-        
+
     def set_block_idx(self, idx: Union[int, List[int]]) -> None:
         """Set the block index (or indices) for block subsampling strategies."""
         if "block" not in self.eval_strategy:
@@ -366,8 +370,9 @@ class BaseTask(ABC):
             assert all(0 <= i < self.n_blocks for i in idx), "Block indices must be integers within valid range"
         else:
             assert isinstance(idx, int), "Block index must be an integer"
-        
+
         self.block_idx = idx
 
     def get_evaluated_blocks(self, prompts: List[Prompt]) -> Dict[str, set[int]]:
+        """Return mapping of prompt string to evaluated block indices."""
         return {str(p): set(self.prompt_evaluated_blocks.get(str(p), set())) for p in prompts}

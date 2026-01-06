@@ -1,8 +1,8 @@
 """Mock task for testing purposes."""
 
+import math
 from unittest.mock import MagicMock
 
-import math
 import pandas as pd
 
 from typing import List
@@ -35,6 +35,9 @@ class MockTask(BaseTask):
 
         Args:
             predetermined_scores: Dict/list/callable for score generation used by _evaluate.
+            config: Optional ExperimentConfig applied to the base class.
+            df: Optional dataframe override to seed the task.
+            n_subsamples: Number of subsamples to expose through BaseTask.
             eval_strategy: Eval strategy to expose (defaults to "full").
             n_blocks: Number of blocks to report.
             block_idx: Current block index (int or list).
@@ -42,8 +45,12 @@ class MockTask(BaseTask):
             task_description: Description to attach to the task.
             evaluate_fn: Optional callable to replace evaluate entirely for tests.
         """
-        base_df = df if df is not None else pd.DataFrame(
-            {"x": ["Sample text 1", "Sample text 2", "Sample text 3"], "y": ["positive", "negative", "neutral"]}
+        base_df = (
+            df
+            if df is not None
+            else pd.DataFrame(
+                {"x": ["Sample text 1", "Sample text 2", "Sample text 3"], "y": ["positive", "negative", "neutral"]}
+            )
         )
 
         super().__init__(

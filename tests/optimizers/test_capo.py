@@ -7,7 +7,7 @@ from tests.mocks.mock_task import MockTask
 from promptolution.optimizers.capo import CAPO
 from promptolution.utils.capo_utils import build_few_shot_examples, perform_crossover, perform_mutation
 from promptolution.utils.prompt import Prompt
-from promptolution.utils.templates import CAPO_CROSSOVER_TEMPLATE, CAPO_FEWSHOT_TEMPLATE, CAPO_MUTATION_TEMPLATE
+from promptolution.utils.templates import CAPO_CROSSOVER_TEMPLATE, CAPO_MUTATION_TEMPLATE
 
 
 def test_capo_initialization(mock_meta_llm, mock_predictor, initial_prompts, mock_task, mock_df):

@@ -16,7 +16,6 @@ if TYPE_CHECKING:  # pragma: no cover
 
 from promptolution.optimizers.base_optimizer import BaseOptimizer
 from promptolution.tasks.multi_objective_task import MultiObjectiveTask
-
 from promptolution.utils.capo_utils import build_few_shot_examples, perform_crossover, perform_mutation
 from promptolution.utils.logging import get_logger
 from promptolution.utils.prompt import Prompt
@@ -86,7 +85,7 @@ class Capoeira(BaseOptimizer):
         self.incumbents: List[Prompt] = self.prompts
         self.challengers: List[Prompt] = []
         self.population_size = len(self.prompts)
-        
+
         if "block" not in self.task.eval_strategy:
             logger.warning(
                 f"ℹ️ CAPO requires 'block' in the eval_strategy, but got {self.task.eval_strategy}. Setting eval_strategy to 'sequential_block'."
@@ -111,20 +110,16 @@ class Capoeira(BaseOptimizer):
             )
             population.append(Prompt(prompt.instruction, few_shots))
 
-        self.max_prompt_length = (
-            max(self.token_counter(p.construct_prompt()) for p in population) if population else 1
-        )
+        self.max_prompt_length = max(self.token_counter(p.construct_prompt()) for p in population) if population else 1
         init_result = self.task.evaluate(population, self.predictor)
         initial_vectors = self._get_objective_vectors(init_result)
         fronts = self._non_dominated_sort(initial_vectors)
         self.incumbents = [population[i] for i in fronts[0]]
         self.challengers = [population[i] for front in fronts[1:] for i in front]
 
-
         # keep self.prompts as a "view" if base class expects it
         self.scores = initial_vectors[:, 0].tolist()
 
-    
     def _step(self) -> List[Prompt]:
         # 1) generate challengers (random parent selection happens inside perform_crossover)
         offsprings = perform_crossover(self.prompts, self)
@@ -138,7 +133,9 @@ class Capoeira(BaseOptimizer):
 
         # 4) logging scores: incumbents only (optional)
         if self.incumbents:
-            inc_result = self.task.evaluate(prompts=self.incumbents, predictor=self.predictor, eval_strategy="evaluated")
+            inc_result = self.task.evaluate(
+                prompts=self.incumbents, predictor=self.predictor, eval_strategy="evaluated"
+            )
             vecs_inc = self._get_objective_vectors(inc_result)
             self.scores = vecs_inc[:, 0].tolist()
         else:
@@ -204,10 +201,7 @@ class Capoeira(BaseOptimizer):
         self.incumbents.append(challenger)
         self._update_incumbent_front(blocks=common_blocks)
 
-
-    def _get_closest_incumbent(
-        self, challenger_vec: np.ndarray, incumbent_vecs: np.ndarray
-    ) -> np.ndarray:
+    def _get_closest_incumbent(self, challenger_vec: np.ndarray, incumbent_vecs: np.ndarray) -> np.ndarray:
         """Return the vector of the geometrically closest incumbent."""
         all_vecs = np.vstack([incumbent_vecs, challenger_vec[None, :]])
         min_b = np.min(all_vecs, axis=0)
@@ -222,7 +216,6 @@ class Capoeira(BaseOptimizer):
         idx = int(np.argmin(dists))
         return incumbent_vecs[idx]
 
-
     def _update_incumbent_front(self, blocks: Optional[set[int]] = None) -> None:
         if not self.incumbents:
             return
@@ -230,9 +223,9 @@ class Capoeira(BaseOptimizer):
         if blocks is None:
             res = self.task.evaluate(self.incumbents, self.predictor, eval_strategy="evaluated")
         else:
-            self.task.set_block_idx(list(sorted(blocks))) # sorted for deterministic behaviour
+            self.task.set_block_idx(list(sorted(blocks)))  # sorted for deterministic behaviour
             res = self.task.evaluate(self.incumbents, self.predictor)
-        
+
         vecs = self._get_objective_vectors(res)
 
         fronts = self._non_dominated_sort(vecs)
@@ -242,7 +235,6 @@ class Capoeira(BaseOptimizer):
 
         self.incumbents = new_incumbents
         self.challengers.extend(demoted)
-
 
     def _get_objective_vectors(self, result) -> np.ndarray:
         # If the task is multi-objective, include all objective dimensions, else single objective.
@@ -257,7 +249,7 @@ class Capoeira(BaseOptimizer):
         cost_scalar = cost_scalar.reshape(-1, 1)
 
         return np.hstack([agg_scores, -cost_scalar])
-    
+
     def _advance_one_incumbent(self) -> None:
         if not self.incumbents:
             return
@@ -292,29 +284,14 @@ class Capoeira(BaseOptimizer):
         self.task.set_block_idx(b)
         self.task.evaluate(prompts=[chosen_inc], predictor=self.predictor)
 
-
     def _select_survivors(self) -> None:
-        """
-        Enforce |incumbents| + |challengers| <= population_size using Pareto logic.
-        
-        Logic:
-        1. Prune from Challengers first (they are less optimal than incumbents).
-        - If challengers have DIFFERENT evaluation blocks (Heterogeneous):
-            We cannot fairly compare their scores. Prune the one with the FEWEST evaluations
-            (least information/newest).
-        - If challengers have the SAME evaluation blocks (Homogeneous):
-            Perform Non-Dominated Sorting (NDS). Identify the worst front.
-            Use Crowding Distance to prune the most crowded (least unique) individual from that front.
-        
-        2. If no Challengers, prune from Incumbents.
-        - Use Crowding Distance to remove the least unique incumbent.
-        """
+        """Prune population via Pareto logic to enforce size constraints."""
         while len(self.incumbents) + len(self.challengers) > self.population_size:
             if len(self.challengers) > 0:
                 # 1. Check Heterogeneity (Fairness Check)
                 chal_blocks_map = self.task.get_evaluated_blocks(self.challengers)
                 block_sets = list(chal_blocks_map.values())
-                
+
                 first_set = block_sets[0]
                 # Are all challengers evaluated on the exact same set of blocks?
                 is_homogeneous = all(s == first_set for s in block_sets)
@@ -324,54 +301,46 @@ class Capoeira(BaseOptimizer):
                     # Prune the prompt with the FEWEST evaluations (least reliable/least invested).
                     counts = [len(s) for s in block_sets]
                     min_count = min(counts)
-                    
+
                     # Find all indices with the minimum count (handle ties randomly)
                     candidates = [i for i, c in enumerate(counts) if c == min_count]
                     victim_idx = random.choice(candidates)
-                    
+
                     self.challengers.pop(victim_idx)
                     continue
-                
+
                 # CASE B: Homogeneous (Fair comparison).
                 # Use NDS + Crowding Distance.
-                
+
                 # Get objective vectors for all challengers (safe because blocks are identical)
-                res = self.task.evaluate(
-                    self.challengers, 
-                    self.predictor, 
-                    eval_strategy="evaluated"
-                )
+                res = self.task.evaluate(self.challengers, self.predictor, eval_strategy="evaluated")
                 vecs = self._get_objective_vectors(res)
-                
+
                 # Perform Non-Dominated Sort
                 fronts = self._non_dominated_sort(vecs)
-                
+
                 # Select the worst front (the last one)
                 worst_front_indices = fronts[-1]
-                
+
                 # Multiple candidates in worst front -> Prune by Crowding Distance
                 # We want to keep diversity (high CD), so we remove low CD.
                 worst_front_vecs = vecs[worst_front_indices]
                 dists = self._calculate_crowding_distance(worst_front_vecs)
-                
+
                 # Find index relative to the worst front list
                 local_worst_idx = int(np.argmin(dists))
                 # Map back to the main challenger list index
                 victim_idx = worst_front_indices[local_worst_idx]
-                
+
                 self.challengers.pop(victim_idx)
                 continue
 
             # --- PRUNE FROM INCUMBENTS ---
             # Fallback: If we only have incumbents, remove the least unique one.
-            res = self.task.evaluate(
-                self.incumbents, 
-                self.predictor, 
-                eval_strategy="evaluated"
-            )
+            res = self.task.evaluate(self.incumbents, self.predictor, eval_strategy="evaluated")
             vecs = self._get_objective_vectors(res)
             dists = self._calculate_crowding_distance(vecs)
-            
+
             # Remove the one with the smallest crowding distance
             victim_idx = int(np.argmin(dists))
             self.incumbents.pop(victim_idx)
@@ -386,7 +355,6 @@ class Capoeira(BaseOptimizer):
 
         common = set.intersection(*block_sets)
         return common
-
 
     @staticmethod
     def _non_dominated_sort(obj_vectors: np.ndarray) -> List[List[int]]:
@@ -420,7 +388,7 @@ class Capoeira(BaseOptimizer):
     def _is_dominated(vec1, vec2):
         """Returns True if vec2 dominates vec1 in a maximize-all setting."""
         return np.all(vec2 >= vec1) and np.any(vec2 > vec1)
-    
+
     @staticmethod
     def _calculate_crowding_distance(obj_vectors: np.ndarray) -> np.ndarray:
         """Calculate crowding distance for a set of solutions."""
