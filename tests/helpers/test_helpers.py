@@ -8,8 +8,29 @@ from tests.mocks.mock_llm import MockLLM
 from tests.mocks.mock_predictor import MockPredictor
 from tests.mocks.mock_task import MockTask
 
-from promptolution.helpers import run_evaluation, run_experiment, run_optimization
+from promptolution.exemplar_selectors.random_search_selector import RandomSearchSelector
+from promptolution.exemplar_selectors.random_selector import RandomSelector
+from promptolution.helpers import (
+    get_exemplar_selector,
+    get_llm,
+    get_optimizer,
+    get_predictor,
+    get_task,
+    run_evaluation,
+    run_experiment,
+    run_optimization,
+)
+from promptolution.optimizers.capo import CAPO
+from promptolution.optimizers.capoeira import Capoeira
+from promptolution.optimizers.evoprompt_de import EvoPromptDE
+from promptolution.optimizers.evoprompt_ga import EvoPromptGA
+from promptolution.optimizers.opro import OPRO
+from promptolution.predictors.first_occurrence_predictor import FirstOccurrencePredictor
+from promptolution.predictors.maker_based_predictor import MarkerBasedPredictor
 from promptolution.tasks.base_task import EvalResult
+from promptolution.tasks.classification_tasks import ClassificationTask
+from promptolution.tasks.judge_tasks import JudgeTask
+from promptolution.tasks.reward_tasks import RewardTask
 from promptolution.utils import ExperimentConfig
 from promptolution.utils.prompt import Prompt
 
@@ -327,3 +348,107 @@ def test_helpers_integration(sample_df, experiment_config):
 
         # Verify evaluation was called
         mock_task.evaluate.assert_called()
+
+
+def test_get_llm_variants(monkeypatch):
+    def factory(model_name=None, config=None, **kwargs):
+        created['name'] = model_name or kwargs.get("model_id")
+        created['config'] = config
+        return MockLLM()
+    
+    created = {}
+
+    monkeypatch.setattr("promptolution.helpers.LocalLLM", factory)
+    monkeypatch.setattr("promptolution.helpers.VLLM", factory)
+    monkeypatch.setattr("promptolution.helpers.APILLM", factory)
+
+    cfg = ExperimentConfig()
+    cfg.model_id = "local-foo"
+    res = get_llm(config=cfg)
+    assert isinstance(res, MockLLM)
+    assert created['name'] == "foo"
+
+    cfg.model_id = "vllm-bar"
+    res = get_llm(config=cfg)
+    assert created['name'] == "bar"
+
+    cfg.model_id = "api-model"
+    res = get_llm(config=cfg)
+    assert created['name'] == "api-model"
+
+    with pytest.raises(ValueError):
+        get_llm()
+
+
+def test_get_task_variants(sample_df):
+    cfg = ExperimentConfig()
+    cfg.task_type = "reward"
+    task = get_task(sample_df, cfg, reward_function=lambda _: 1.0)
+
+    assert isinstance(task, RewardTask)
+
+    cfg.task_type = "judge"
+    judge_task = get_task(sample_df, cfg, judge_llm=MockLLM())
+
+    assert isinstance(judge_task, JudgeTask)
+
+    cfg.task_type = "classification"
+    cls_task = get_task(sample_df, cfg)
+
+    assert isinstance(cls_task, ClassificationTask)
+
+
+def test_get_optimizer_variants():
+    pred = MockPredictor(llm=MockLLM())
+    task = MockTask()
+    cfg = ExperimentConfig()
+
+    opt = get_optimizer(pred, MockLLM(), task, optimizer="capo", config=cfg)
+
+    assert isinstance(opt, CAPO)
+
+    opt2 = get_optimizer(pred, MockLLM(), task, optimizer="capoeira", config=cfg)
+
+    assert isinstance(opt2, Capoeira)
+
+    opt3 = get_optimizer(pred, MockLLM(), task, optimizer="evopromptde", config=cfg)
+
+    assert isinstance(opt3, EvoPromptDE)
+
+    opt4 = get_optimizer(pred, MockLLM(), task, optimizer="evopromptga", config=cfg)
+
+    assert isinstance(opt4, EvoPromptGA)
+
+    opt5 = get_optimizer(pred, MockLLM(), task, optimizer="opro", config=cfg)
+
+    assert isinstance(opt5, OPRO)
+
+    with pytest.raises(ValueError):
+        get_optimizer(pred, MockLLM(), task, optimizer="unknown", config=cfg)
+
+
+def test_get_exemplar_selector_variants():
+    task = MockTask()
+    pred = MockPredictor()
+
+    sel = get_exemplar_selector("random", task, pred)
+    assert isinstance(sel, RandomSelector)
+
+    sel2 = get_exemplar_selector("random_search", task, pred)
+    assert isinstance(sel2, RandomSearchSelector)
+
+    with pytest.raises(ValueError):
+        get_exemplar_selector("nope", task, pred)
+
+
+def test_get_predictor_variants():
+    llm = MockLLM()
+
+    p1 = get_predictor(llm, type="first_occurrence", classes=["a", "b"])
+    assert isinstance(p1, FirstOccurrencePredictor)
+
+    p2 = get_predictor(llm, type="marker")
+    assert isinstance(p2, MarkerBasedPredictor)
+
+    with pytest.raises(ValueError):
+        get_predictor(llm, type="bad")

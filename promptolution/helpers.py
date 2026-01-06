@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING, Callable, List, Literal, Optional, Union, cast
 
 from promptolution.tasks.judge_tasks import JudgeTask
 from promptolution.tasks.reward_tasks import RewardTask
+from promptolution.utils import ExperimentConfig
 from promptolution.utils.prompt import Prompt
 from promptolution.utils.prompt_creation import create_prompts_from_task_description
 
@@ -13,7 +14,6 @@ if TYPE_CHECKING:  # pragma: no cover
     from promptolution.optimizers.base_optimizer import BaseOptimizer
     from promptolution.predictors.base_predictor import BasePredictor
     from promptolution.tasks.base_task import BaseTask
-    from promptolution.utils.config import ExperimentConfig
     from promptolution.tasks.base_task import TaskType
     from promptolution.optimizers.base_optimizer import OptimizerType
     from promptolution.predictors.base_predictor import PredictorType
@@ -79,12 +79,6 @@ def run_optimization(df: pd.DataFrame, config: "ExperimentConfig") -> List[Promp
             llm=llm,
         )
         config.prompts = [Prompt(p) for p in initial_prompts]
-
-    if config.optimizer in {"capo", "capoeira"} and (
-        config.eval_strategy is None or "block" not in config.eval_strategy
-    ):
-        logger.warning("📌 CAPO-style optimizers require block evaluation strategy. Setting it to 'sequential_block'.")
-        config.eval_strategy = "sequential_block"
 
     task = get_task(df, config, judge_llm=llm)
     optimizer = get_optimizer(
@@ -287,7 +281,7 @@ def get_exemplar_selector(
         raise ValueError(f"Unknown exemplar selector: {name}")
 
 
-def get_predictor(downstream_llm=None, type: "PredictorType" = "marker", *args, **kwargs) -> "BasePredictor":
+def get_predictor(downstream_llm: Optional["BaseLLM"] = None, type: "PredictorType" = "marker", *args, **kwargs) -> "BasePredictor":
     """Create and return a predictor instance.
 
     This function supports three types of predictors:
@@ -305,6 +299,7 @@ def get_predictor(downstream_llm=None, type: "PredictorType" = "marker", *args, 
     Returns:
         An instance of FirstOccurrencePredictor or MarkerBasedPredictor.
     """
+    assert downstream_llm is not None, "downstream_llm must be provided to create a predictor."
     if type == "first_occurrence":
         return FirstOccurrencePredictor(downstream_llm, *args, **kwargs)
     elif type == "marker":

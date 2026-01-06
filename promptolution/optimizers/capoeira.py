@@ -1,7 +1,5 @@
 """Implementation of the Capoeira (Multi-Objective CAPO) optimizer."""
 
-from __future__ import annotations
-
 import random
 
 import numpy as np
@@ -80,15 +78,15 @@ class Capoeira(BaseOptimizer):
 
         super().__init__(predictor, task, initial_prompts, callbacks, config)
 
-        self.incumbents: List[Prompt] = []
-        self.challengers: List[Prompt] = []
-
         self.crossover_template = self._initialize_meta_template(crossover_template or CAPO_CROSSOVER_TEMPLATE)
         self.mutation_template = self._initialize_meta_template(mutation_template or CAPO_MUTATION_TEMPLATE)
         self.token_counter = get_token_counter(self.downstream_llm)
         self.df_few_shots = df_few_shots if df_few_shots is not None else task.pop_datapoints(frac=0.1)
-        self.population_size = len(self.prompts)
 
+        self.incumbents: List[Prompt] = self.prompts
+        self.challengers: List[Prompt] = []
+        self.population_size = len(self.prompts)
+        
         if "block" not in self.task.eval_strategy:
             logger.warning(
                 f"ℹ️ CAPO requires 'block' in the eval_strategy, but got {self.task.eval_strategy}. Setting eval_strategy to 'sequential_block'."
@@ -102,10 +100,6 @@ class Capoeira(BaseOptimizer):
             self.target_begin_marker = ""
             self.target_end_marker = ""
 
-    @property
-    def prompts(self) -> List[Prompt]:
-        return self.incumbents + self.challengers
-    
     def _pre_optimization_loop(self) -> None:
         population: List[Prompt] = []
         for prompt in self.prompts:
@@ -121,10 +115,11 @@ class Capoeira(BaseOptimizer):
             max(self.token_counter(p.construct_prompt()) for p in population) if population else 1
         )
         init_result = self.task.evaluate(population, self.predictor)
-        initial_vectors = self._get_objective_vectors(init_result) #TODO rename
+        initial_vectors = self._get_objective_vectors(init_result)
         fronts = self._non_dominated_sort(initial_vectors)
         self.incumbents = [population[i] for i in fronts[0]]
         self.challengers = [population[i] for front in fronts[1:] for i in front]
+
 
         # keep self.prompts as a "view" if base class expects it
         self.scores = initial_vectors[:, 0].tolist()
@@ -139,7 +134,7 @@ class Capoeira(BaseOptimizer):
         for chal in new_challengers:
             self._do_intensification(chal)
             self._advance_one_incumbent()
-            self._prune_population()
+            self._select_survivors()
 
         # 4) logging scores: incumbents only (optional)
         if self.incumbents:
@@ -152,55 +147,63 @@ class Capoeira(BaseOptimizer):
         return self.prompts
 
     def _do_intensification(self, challenger: Prompt) -> None:
-        """
-        Default MO-CAPO intensification (closest-incumbent comparison):
-        - evaluate challenger + incumbents on sequential blocks
-        - maintain running averages (challenger and incumbents)
-        - early reject if closest incumbent dominates challenger average
-        - if challenger survives all blocks: promote to incumbents and update front
-        """
         if not self.incumbents:
             self.incumbents.append(challenger)
             return
 
-        common_block_idx = 0
-        while common_block_idx is not None:
-            common_block_idx = self._sample_common_block(self.incumbents)
-            self.task.set_block_idx(common_block_idx)  # type: ignore
+        common_blocks = self._get_common_blocks(self.incumbents)
 
-            joint_result = self.task.evaluate(
-                prompts=self.incumbents + [challenger],
-                predictor=self.predictor
-            )
+        # bootstrap if no common blocks yet
+        if not common_blocks:
+            b = random.randrange(self.task.n_blocks)
+            self.task.set_block_idx(b)
+            self.task.evaluate(self.incumbents + [challenger], self.predictor)
+            self.incumbents.append(challenger)
+            self._update_incumbent_front(blocks={b})
+            return
 
-            objective_vectors = self._get_objective_vectors(joint_result)
-            challenger_vec = objective_vectors[-1]
-            incumbent_vecs = objective_vectors[:-1]
+        remaining_blocks = set(common_blocks)
 
-            closest_inc_vec = self._get_closest_incumbent(challenger_vec, incumbent_vecs)
+        challenger_mean: Optional[np.ndarray] = None
+        incumbents_mean: Optional[np.ndarray] = None
+        t = 0
 
-            if self._is_dominated(challenger_vec, closest_inc_vec):
-                # challenger loses -> goes to population
+        fold_vec: Optional[np.ndarray] = None
+
+        while remaining_blocks:
+            b = random.choice(tuple(remaining_blocks))
+            remaining_blocks.remove(b)
+
+            # evaluate all incumbents + challenger on THIS block (cache will avoid recompute)
+            self.task.set_block_idx(b)
+            res = self.task.evaluate(self.incumbents + [challenger], self.predictor)
+            vecs = self._get_objective_vectors(res)  # per-block vectors, shape (n_inc+1, n_obj)
+            incumbent_block = vecs[:-1]
+            challenger_block = vecs[-1]
+
+            # running means
+            t += 1
+            if challenger_mean is None:
+                challenger_mean = challenger_block.copy()
+                incumbents_mean = incumbent_block.copy()
+            else:
+                challenger_mean += (challenger_block - challenger_mean) / t
+                incumbents_mean += (incumbent_block - incumbents_mean) / t  # type: ignore
+
+            # trigger comparisons CAPO/thesis-style
+            if fold_vec is not None and not self._is_dominated(fold_vec, challenger_mean):
+                continue
+            fold_vec = challenger_mean.copy()
+
+            closest_inc = self._get_closest_incumbent(challenger_mean, incumbents_mean)  # type: ignore
+            if self._is_dominated(challenger_mean, closest_inc):
                 self.challengers.append(challenger)
                 return
 
+        # survived all common blocks -> admit and update front restricted to common_blocks
         self.incumbents.append(challenger)
-        self._update_incumbent_front()
+        self._update_incumbent_front(blocks=common_blocks)
 
-    def _sample_common_block(self, prompts: List[Prompt]) -> Optional[int]:
-        """Sample a block index that has been evaluated by all given prompts.
-        Returns None if no such block exists."""
-        per_prompt = self.task.get_evaluated_blocks(prompts)  # Dict[prompt -> Set[int]]
-        block_sets = list(per_prompt.values())
-
-        if not block_sets:
-            return random.randrange(self.task.n_blocks)
-
-        common = set.intersection(*block_sets)
-        if not common:
-            return None
-
-        return random.choice(tuple(common))
 
     def _get_closest_incumbent(
         self, challenger_vec: np.ndarray, incumbent_vecs: np.ndarray
@@ -212,25 +215,26 @@ class Capoeira(BaseOptimizer):
         rng = max_b - min_b
         rng[rng == 0] = 1.0  # Avoid div/0
 
-        norm_chal = (challenger_vec - min_b) / rng
-        norm_incs = (incumbent_vecs - min_b) / rng
+        challenger_norm = (challenger_vec - min_b) / rng
+        incumbents_norm = (incumbent_vecs - min_b) / rng
 
-        dists = np.linalg.norm(norm_incs - norm_chal, axis=1)
+        dists = np.linalg.norm(incumbents_norm - challenger_norm, axis=1)
         idx = int(np.argmin(dists))
         return incumbent_vecs[idx]
 
 
-    def _update_incumbent_front(self) -> None:
-        """
-        After adding a challenger that survived a full race, recompute the incumbent Pareto front.
-        Default behavior: incumbents become front-0 (on current evaluation state),
-        all other incumbents are demoted to challengers.
-        """
+    def _update_incumbent_front(self, blocks: Optional[set[int]] = None) -> None:
         if not self.incumbents:
             return
 
-        vecs_result = self.task.evaluate(prompts=self.incumbents, predictor=self.predictor, eval_strategy="evaluated")
-        vecs = self._get_objective_vectors(vecs_result)
+        if blocks is None:
+            res = self.task.evaluate(self.incumbents, self.predictor, eval_strategy="evaluated")
+        else:
+            self.task.set_block_idx(list(sorted(blocks))) # sorted for deterministic behaviour
+            res = self.task.evaluate(self.incumbents, self.predictor)
+        
+        vecs = self._get_objective_vectors(res)
+
         fronts = self._non_dominated_sort(vecs)
 
         new_incumbents = [self.incumbents[i] for i in fronts[0]]
@@ -241,7 +245,6 @@ class Capoeira(BaseOptimizer):
 
 
     def _get_objective_vectors(self, result) -> np.ndarray:
-
         # If the task is multi-objective, include all objective dimensions, else single objective.
         if isinstance(self.task, MultiObjectiveTask):
             agg_scores = np.stack(result.agg_scores, axis=1)  # shape: (n_prompts, n_objectives)
@@ -254,23 +257,43 @@ class Capoeira(BaseOptimizer):
         cost_scalar = cost_scalar.reshape(-1, 1)
 
         return np.hstack([agg_scores, -cost_scalar])
-
+    
     def _advance_one_incumbent(self) -> None:
-        """
-        Default MO-CAPO step after processing a challenger:
-        evaluate one incumbent on one additional sequential block.
-        """
-        # choose least evaluated incumbent
-        eval_counts = [
-            len(self.task.get_evaluated_blocks([inc])) for inc in self.incumbents
-        ]
+        if not self.incumbents:
+            return
+
+        blocks_map = self.task.get_evaluated_blocks(self.incumbents)  # Dict[str -> Set[int]]
+        inc_keys = [str(inc) for inc in self.incumbents]
+
+        # least evaluated incumbents
+        eval_counts = [len(blocks_map[k]) for k in inc_keys]
         min_count = min(eval_counts)
-        candidates = [inc for inc, count in zip(self.incumbents, eval_counts) if count == min_count]
-        chosen = random.sample(candidates, k=1)
-        self.task.evaluate(prompts=chosen, predictor=self.predictor)
+        least = [inc for inc, c in zip(self.incumbents, eval_counts) if c == min_count]
+        chosen_inc = random.choice(least)
+
+        # union over incumbents
+        union_blocks: set[int] = set()
+        for inc in self.incumbents:
+            union_blocks |= set(blocks_map[str(inc)])
+
+        chosen_blocks = set(blocks_map[str(chosen_inc)])
+
+        # gap-first, else brand-new
+        gap_blocks = union_blocks - chosen_blocks
+        if gap_blocks:
+            b = random.choice(tuple(gap_blocks))
+        else:
+            all_blocks = set(range(self.task.n_blocks))
+            new_blocks = all_blocks - union_blocks
+            if not new_blocks:
+                return
+            b = random.choice(tuple(new_blocks))
+
+        self.task.set_block_idx(b)
+        self.task.evaluate(prompts=[chosen_inc], predictor=self.predictor)
 
 
-    def _prune_population(self) -> None:
+    def _select_survivors(self) -> None:
         """
         Enforce |incumbents| + |challengers| <= population_size using Pareto logic.
         
@@ -353,8 +376,20 @@ class Capoeira(BaseOptimizer):
             victim_idx = int(np.argmin(dists))
             self.incumbents.pop(victim_idx)
 
+    def _get_common_blocks(self, prompts: List[Prompt]) -> set:
+        """Get the set of block indices that have been evaluated by all given prompts."""
+        per_prompt = self.task.get_evaluated_blocks(prompts)  # Dict[prompt -> Set[int]]
+        block_sets = list(per_prompt.values())
 
-    def _non_dominated_sort(self, obj_vectors: np.ndarray) -> List[List[int]]:
+        if not block_sets:
+            return set()
+
+        common = set.intersection(*block_sets)
+        return common
+
+
+    @staticmethod
+    def _non_dominated_sort(obj_vectors: np.ndarray) -> List[List[int]]:
         """Perform fast non-dominated sorting (NSGA-II) in a vectorized manner."""
         n_solutions = obj_vectors.shape[0]
 

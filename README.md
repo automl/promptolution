@@ -92,7 +92,7 @@ We encourage every contributor to also write tests, that automatically check if 
 
 ```
 poetry run python -m coverage run -m pytest
-poetry run python -m coverage report
+poetry run python -m coverage report -i
 ```
 
 Developed by **Timo Heiß**, **Moritz Schlager**, and **Tom Zehle** (LMU Munich, MCML, ELLIS, TUM, Uni Freiburg).

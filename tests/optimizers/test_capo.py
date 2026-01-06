@@ -123,15 +123,7 @@ def test_create_few_shots(mock_meta_llm, mock_predictor, initial_prompts, mock_t
     few_shot_examples = build_few_shot_examples(
         instruction="Classify the sentiment of the text.",
         num_examples=2,
-        df_few_shots=mock_df,
-        x_column=mock_task.x_column,
-        y_column=mock_task.y_column,
-        predictor=mock_predictor,
-        fewshot_template=CAPO_FEWSHOT_TEMPLATE,
-        target_begin_marker=optimizer.target_begin_marker,
-        target_end_marker=optimizer.target_end_marker,
-        check_fs_accuracy=True,
-        create_fs_reasoning=True,
+        optimizer=optimizer,
     )
 
     # Verify results
@@ -141,15 +133,7 @@ def test_create_few_shots(mock_meta_llm, mock_predictor, initial_prompts, mock_t
     few_shot_examples = build_few_shot_examples(
         instruction="Classify the sentiment of the text.",
         num_examples=0,
-        df_few_shots=mock_df,
-        x_column=mock_task.x_column,
-        y_column=mock_task.y_column,
-        predictor=mock_predictor,
-        fewshot_template=CAPO_FEWSHOT_TEMPLATE,
-        target_begin_marker=optimizer.target_begin_marker,
-        target_end_marker=optimizer.target_end_marker,
-        check_fs_accuracy=True,
-        create_fs_reasoning=True,
+        optimizer=optimizer,
     )
 
     assert len(few_shot_examples) == 0
@@ -167,9 +151,7 @@ def test_crossover(mock_meta_llm, mock_predictor, initial_prompts, mock_task, mo
 
     offsprings = perform_crossover(
         [Prompt("Instruction 1", ["Example 1"]), Prompt("Instruction 2", ["Example 2"])],
-        optimizer.crossovers_per_iter,
-        optimizer.crossover_template,
-        optimizer.meta_llm,
+        optimizer=optimizer,
     )
     assert len(offsprings) == 5
 
@@ -185,20 +167,7 @@ def test_mutate(mock_meta_llm, mock_predictor, initial_prompts, mock_task, mock_
 
     mutated = perform_mutation(
         offsprings=[Prompt("Instruction 1", ["Example 1"]), Prompt("Instruction 2", ["Example 2"])],
-        mutation_template=optimizer.mutation_template,
-        upper_shots=optimizer.upper_shots,
-        meta_llm=optimizer.meta_llm,
-        few_shot_kwargs=dict(
-            df_few_shots=mock_df,
-            x_column=mock_task.x_column,
-            y_column=mock_task.y_column,
-            predictor=mock_predictor,
-            fewshot_template=CAPO_FEWSHOT_TEMPLATE,
-            target_begin_marker=optimizer.target_begin_marker,
-            target_end_marker=optimizer.target_end_marker,
-            check_fs_accuracy=True,
-            create_fs_reasoning=True,
-        ),
+        optimizer=optimizer,
     )
     assert len(mutated) == 2
 
@@ -222,7 +191,7 @@ def test_do_racing(mock_meta_llm, mock_predictor, initial_prompts, mock_df):
     assert "better instruction" in survivors[0].instruction
 
     assert mock_task.reset_block_idx.call_count == 2
-    assert mock_task.increment_block_idx.call_count == 3
+    assert mock_task.increment_block_idx.call_count == 2
 
 
 def test_capo_crossover_prompt(mock_meta_llm, mock_predictor, initial_prompts, mock_task, mock_df):
@@ -237,7 +206,7 @@ def test_capo_crossover_prompt(mock_meta_llm, mock_predictor, initial_prompts, m
 
     mother = Prompt("Classify the sentiment of the text.", ["Input: I love this! Output: Positive"])
     father = Prompt("Determine if the review is positive or negative.", ["Input: This is terrible. Output: Negative"])
-    perform_crossover([mother, father], optimizer.crossovers_per_iter, optimizer.crossover_template, optimizer.meta_llm)
+    perform_crossover([mother, father], optimizer=optimizer)
 
     full_task_desc = mock_task.task_description + "\n" + optimizer.predictor.extraction_description
 
@@ -269,20 +238,7 @@ def test_capo_mutate_prompt(mock_meta_llm, mock_predictor, initial_prompts, mock
     parent = Prompt("Classify the sentiment of the text.", ["Input: I love this! Output: Positive"])
     perform_mutation(
         offsprings=[parent],
-        mutation_template=optimizer.mutation_template,
-        upper_shots=optimizer.upper_shots,
-        meta_llm=optimizer.meta_llm,
-        few_shot_kwargs=dict(
-            df_few_shots=mock_df,
-            x_column=mock_task.x_column,
-            y_column=mock_task.y_column,
-            predictor=mock_predictor,
-            fewshot_template=CAPO_FEWSHOT_TEMPLATE,
-            target_begin_marker=optimizer.target_begin_marker,
-            target_end_marker=optimizer.target_end_marker,
-            check_fs_accuracy=True,
-            create_fs_reasoning=True,
-        ),
+        optimizer=optimizer,
     )
 
     expected_meta_prompt = CAPO_MUTATION_TEMPLATE.replace("<instruction>", parent.instruction).replace(

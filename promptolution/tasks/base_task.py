@@ -83,7 +83,7 @@ class BaseTask(ABC):
             # If no y_column is provided, create a dummy y array
             self.ys = [""] * len(self.xs)
 
-        self.block_idx: int = 0
+        self.block_idx: int | list[int] = 0
         self.n_blocks: int = len(self.xs) // self.n_subsamples if self.n_subsamples > 0 else 1
         self.rng = np.random.default_rng(seed)
 
@@ -116,9 +116,18 @@ class BaseTask(ABC):
             indices = np.arange(start_idx, end_idx)
             return [self.xs[i] for i in indices], [self.ys[i] for i in indices]
         elif eval_strategy == "sequential_block":
-            start_idx = self.block_idx * self.n_subsamples
-            end_idx = min((self.block_idx + 1) * self.n_subsamples, len(self.xs))
-            indices = np.arange(start_idx, end_idx)
+            if isinstance(self.block_idx, list):
+                block_indices: List[int] = []
+                for block_id in self.block_idx:
+                    start_idx = block_id * self.n_subsamples
+                    end_idx = min((block_id + 1) * self.n_subsamples, len(self.xs))
+                    block_indices.extend(range(start_idx, end_idx))
+                indices = np.array(sorted(set(block_indices)), dtype=int)
+            else:
+                start_idx = self.block_idx * self.n_subsamples
+                end_idx = min((self.block_idx + 1) * self.n_subsamples, len(self.xs))
+                indices = np.arange(start_idx, end_idx)
+
             return [self.xs[i] for i in indices], [self.ys[i] for i in indices]
         else:
             raise ValueError(f"Unknown subsampling strategy: '{eval_strategy}'")
@@ -264,7 +273,10 @@ class BaseTask(ABC):
 
         # Record evaluated block for block strategies
         for prompt in prompts_list:
-            self.prompt_evaluated_blocks.setdefault(str(prompt), set()).add(self.block_idx)
+            if isinstance(self.block_idx, list):
+                self.prompt_evaluated_blocks.setdefault(str(prompt), set()).update(self.block_idx)
+            else:
+                self.prompt_evaluated_blocks.setdefault(str(prompt), set()).add(self.block_idx)
 
         input_tokens, output_tokens, agg_input_tokens, agg_output_tokens = self._compute_costs(
             prompts_list, xs, ys, self.seq_cache, predictor
@@ -328,6 +340,7 @@ class BaseTask(ABC):
         """
         if "block" not in self.eval_strategy:
             raise ValueError("Block increment is only valid for block subsampling.")
+        assert isinstance(self.block_idx, int), "Block index must be an integer to increment."
         self.block_idx += 1
         if self.n_blocks > 0:  # Ensure n_blocks is not zero to avoid division by zero
             self.block_idx %= self.n_blocks
@@ -344,14 +357,17 @@ class BaseTask(ABC):
             raise ValueError("Block reset is only valid for block subsampling.")
         self.block_idx = 0
         
-    def set_block_idx(self, idx: int) -> None:
-        """Set the block index for subsampling (block strategies only)."""
+    def set_block_idx(self, idx: Union[int, List[int]]) -> None:
+        """Set the block index (or indices) for block subsampling strategies."""
         if "block" not in self.eval_strategy:
             raise ValueError("Block assignment is only valid for block subsampling.")
-        if self.n_blocks > 0:
-            self.block_idx = idx % self.n_blocks
+
+        if isinstance(idx, list):
+            assert all(0 <= i < self.n_blocks for i in idx), "Block indices must be integers within valid range"
         else:
-            self.block_idx = 0
+            assert isinstance(idx, int), "Block index must be an integer"
+        
+        self.block_idx = idx
 
     def get_evaluated_blocks(self, prompts: List[Prompt]) -> Dict[str, set[int]]:
         return {str(p): set(self.prompt_evaluated_blocks.get(str(p), set())) for p in prompts}
