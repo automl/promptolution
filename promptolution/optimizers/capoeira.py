@@ -112,7 +112,6 @@ class Capoeira(BaseOptimizer):
             )
             population.append(Prompt(prompt.instruction, few_shots))
 
-        self.max_prompt_length = max(self.token_counter(p.construct_prompt()) for p in population) if population else 1
         init_result = self.task.evaluate(population, self.predictor)
         initial_vectors = self._get_objective_vectors(init_result)
         fronts = self._non_dominated_sort(initial_vectors)
@@ -128,20 +127,17 @@ class Capoeira(BaseOptimizer):
         new_challengers = perform_mutation(offsprings, self)
 
         # 2) intensify each challenger; after each, advance incumbents + prune
-        for chal in new_challengers:
-            self._do_intensification(chal)
-            self._advance_one_incumbent()
+        for challenger in new_challengers:
+            self._do_intensification(challenger)
             self._select_survivors()
+            self._advance_one_incumbent()
 
-        # 4) logging scores: incumbents only (optional)
-        if self.incumbents:
-            inc_result = self.task.evaluate(
-                prompts=self.incumbents, predictor=self.predictor, eval_strategy="evaluated"
-            )
-            vecs_inc = self._get_objective_vectors(inc_result)
-            self.scores = vecs_inc[:, 0].tolist()
-        else:
-            self.scores = []
+        inc_result = self.task.evaluate(
+            prompts=self.incumbents, predictor=self.predictor, eval_strategy="evaluated"
+        )
+        vecs_inc = self._get_objective_vectors(inc_result)
+        self.scores = vecs_inc[:, 0].tolist()
+        self.prompts = self.incumbents
 
         return self.prompts
 
@@ -189,10 +185,14 @@ class Capoeira(BaseOptimizer):
                 challenger_mean += (challenger_block - challenger_mean) / t
                 incumbents_mean += (incumbent_block - incumbents_mean) / t  # type: ignore
 
-            # trigger comparisons CAPO/thesis-style
-            if fold_vec is not None and not self._is_dominated(fold_vec, challenger_mean):
+            if fold_vec is None:
+                fold_vec = challenger_mean.copy()
                 continue
-            fold_vec = challenger_mean.copy()
+
+            if self._is_dominated(fold_vec, challenger_mean):
+                continue
+
+            fold_vec = challenger_mean.copy() # TODO RENAME
 
             closest_inc = self._get_closest_incumbent(challenger_mean, incumbents_mean)  # type: ignore
             if self._is_dominated(challenger_mean, closest_inc):
