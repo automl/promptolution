@@ -237,7 +237,6 @@ class BaseTask(ABC):
         """
         raise NotImplementedError
 
-    @abstractmethod
     def activate_scalarized_objective(self) -> None:
         """Activate scalarized objective for multi-objective tasks."""
         raise NotImplementedError
