@@ -13,7 +13,6 @@ from promptolution.utils.logging import get_logger
 logger = get_logger(__name__)
 
 try:
-    from transformers import AutoTokenizer  # type: ignore
     from vllm import LLM, SamplingParams
 
     imports_successful = True
@@ -113,8 +112,7 @@ class VLLM(BaseLLM):
 
         self.llm = LLM(**llm_params)
 
-        # Initialize tokenizer separately for potential pre-processing
-        self.tokenizer = AutoTokenizer.from_pretrained(model_id)
+        self.tokenizer = self.llm.get_tokenizer()
 
         if batch_size is None:
             cache_config = self.llm.llm_engine.model_executor.cache_config

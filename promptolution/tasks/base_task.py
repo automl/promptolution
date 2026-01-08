@@ -66,7 +66,7 @@ class BaseTask(ABC):
         self.df = df.drop_duplicates(subset=[x_column])
         if len(self.df) != len(df):
             logger.warning(
-                f"Duplicate entries detected for x_column '{x_column}'; dropped {len(df) - len(self.df)} rows to enforce uniqueness."
+                f"Duplicate entries detected for x_column '{x_column}' - dropped {len(df) - len(self.df)} rows to enforce uniqueness."
             )
         self.x_column: str = x_column
         self.y_column: Optional[str] = y_column
@@ -235,6 +235,11 @@ class BaseTask(ABC):
 
         This method should be implemented by subclasses based on their specific evaluation logic.
         """
+        raise NotImplementedError
+
+    @abstractmethod
+    def activate_scalarized_objective(self) -> None:
+        """Activate scalarized objective for multi-objective tasks."""
         raise NotImplementedError
 
     def evaluate(
