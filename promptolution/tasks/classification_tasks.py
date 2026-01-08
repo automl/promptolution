@@ -62,6 +62,7 @@ class ClassificationTask(BaseTask):
             seed=seed,
             config=config,
         )
+        self.task_type = "classification"
         self.ys: List[str] = (
             df[self.y_column].str.lower().values.tolist()
         )  # Ensure y values are lowercase for consistent comparison

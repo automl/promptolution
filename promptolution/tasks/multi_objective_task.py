@@ -57,7 +57,7 @@ class MultiObjectiveTask(BaseTask):
             seed=primary.seed,
             config=None,
         )
-        self.task_type: TaskType = "multi"
+        self.task_type = "multi"
         self.tasks = tasks
         self._scalarized_objective: bool = False
 

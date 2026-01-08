@@ -57,7 +57,7 @@ class RewardTask(BaseTask):
             seed=seed,
             config=config,
         )
-
+        self.task_type = "reward"
         # x -> kwargs to reward function
         km = self.df.set_index(x_column)[self.reward_columns].to_dict("index")
         self.kwargs_map = defaultdict(dict, km)

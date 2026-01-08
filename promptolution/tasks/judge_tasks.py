@@ -111,6 +111,7 @@ class JudgeTask(BaseTask):
             config=config,
         )
         self.judge_llm = judge_llm
+        self.task_type = "judge"
 
     def _construct_judge_prompt(self, x: str, pred: str, y: Optional[str] = None) -> str:
         """Construct the judge prompt based on whether ground truth is available."""
