@@ -4,7 +4,6 @@ from typing import TYPE_CHECKING, Callable, List, Literal, Optional, Union, cast
 
 from promptolution.tasks.judge_tasks import JudgeTask
 from promptolution.tasks.reward_tasks import RewardTask
-from promptolution.utils import ExperimentConfig
 from promptolution.utils.prompt import Prompt
 from promptolution.utils.prompt_creation import create_prompts_from_task_description
 
@@ -17,6 +16,8 @@ if TYPE_CHECKING:  # pragma: no cover
     from promptolution.tasks.base_task import TaskType
     from promptolution.optimizers.base_optimizer import OptimizerType
     from promptolution.predictors.base_predictor import PredictorType
+    from promptolution.utils import ExperimentConfig
+
 
 import pandas as pd
 
@@ -203,7 +204,6 @@ def get_optimizer(
     meta_llm: "BaseLLM",
     task: "BaseTask",
     optimizer: Optional["OptimizerType"] = None,
-    task_description: Optional[str] = None,
     config: Optional["ExperimentConfig"] = None,
 ) -> "BaseOptimizer":
     """Create and return an optimizer instance based on provided parameters.
@@ -214,7 +214,6 @@ def get_optimizer(
         task: The task object used for evaluating prompts
         optimizer: String identifying which optimizer to use
         meta_prompt: Meta prompt text for the optimizer
-        task_description: Description of the task for the optimizer
         config: Configuration object with default parameters
 
     Returns:
@@ -224,10 +223,6 @@ def get_optimizer(
         ValueError: If an unknown optimizer type is specified
     """
     final_optimizer = optimizer or (config.optimizer if config else None)
-    if config is None:
-        config = ExperimentConfig()
-    if task_description is not None:
-        config.task_description = task_description
 
     if final_optimizer == "capo":
         return CAPO(
