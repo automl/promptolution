@@ -13,7 +13,8 @@ from promptolution.utils.logging import get_logger
 logger = get_logger(__name__)
 
 try:
-    from vllm import LLM, SamplingParams
+    from vllm import LLM
+    from vllm.sampling_params import SamplingParams
 
     imports_successful = True
 except ImportError:
