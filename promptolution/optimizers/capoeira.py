@@ -41,7 +41,7 @@ class Capoeira(BaseOptimizer):
         crossovers_per_iter: int = 4,
         upper_shots: int = 5,
         cost_per_input_token: float = 1.0,
-        cost_per_output_token: float = 0.0,
+        cost_per_output_token: float = 0.0, # NOTE: Maybe we should not deactivate one weight as default. Rather make weights mandatory or equal weighting?
         check_fs_accuracy: bool = True,
         create_fs_reasoning: bool = True,
         df_few_shots: Optional[pd.DataFrame] = None,
@@ -85,7 +85,7 @@ class Capoeira(BaseOptimizer):
         self.df_few_shots = df_few_shots if df_few_shots is not None else task.pop_datapoints(frac=0.1)
 
         self.incumbents: List[Prompt] = self.prompts
-        self.challengers: List[Prompt] = []
+        self.challengers: List[Prompt] = [] # NOTE: Maybe name it in another way. eg. gene_pool, rejected_archive. Its hard to distingisuh between the rejected gene pool and the new unevaluated offspring.
         self.population_size = len(self.prompts)
 
         if "block" not in self.task.eval_strategy:
@@ -123,7 +123,7 @@ class Capoeira(BaseOptimizer):
 
     def _step(self) -> List[Prompt]:
         # 1) generate challengers (random parent selection happens inside perform_crossover)
-        offsprings = perform_crossover(self.prompts, self)
+        offsprings = perform_crossover(self.prompts, self) # FIXME: Both MO-CAPO versions use Binary tournament selection, but slightly different. The correct tournaments are missing from the util functions. 
         new_challengers = perform_mutation(offsprings, self)
 
         # 2) intensify each challenger; after each, advance incumbents + prune
@@ -133,7 +133,7 @@ class Capoeira(BaseOptimizer):
             self._advance_one_incumbent()
 
         inc_result = self.task.evaluate(
-            prompts=self.incumbents, predictor=self.predictor, eval_strategy="evaluated"
+            prompts=self.incumbents, predictor=self.predictor, eval_strategy="evaluated" # NOTE: This is only for logging right? 
         )
         vecs_inc = self._get_objective_vectors(inc_result)
         self.scores = vecs_inc[:, 0].tolist()
@@ -142,14 +142,14 @@ class Capoeira(BaseOptimizer):
         return self.prompts
 
     def _do_intensification(self, challenger: Prompt) -> None:
-        if not self.incumbents:
+        if not self.incumbents: # NOTE: This shouldn't be the case if correctly working. Not wrong, but we should have an eye on potential silent bugs.
             self.incumbents.append(challenger)
             return
 
         common_blocks = self._get_common_blocks(self.incumbents)
 
         # bootstrap if no common blocks yet
-        if not common_blocks:
+        if not common_blocks: # NOTE: This should NOT happen if correctly working. Not wrong per se, but we should have an eye on potential silent bugs.
             b = random.randrange(self.task.n_blocks)
             self.task.set_block_idx(b)
             self.task.evaluate(self.incumbents + [challenger], self.predictor)
@@ -163,7 +163,7 @@ class Capoeira(BaseOptimizer):
         incumbents_mean: Optional[np.ndarray] = None
         t = 0
 
-        fold_vec: Optional[np.ndarray] = None
+        fold_vec: Optional[np.ndarray] = None # FIXME: Init with infinity to trigger dominance after the first block. 
 
         while remaining_blocks:
             b = random.choice(tuple(remaining_blocks))
@@ -173,7 +173,7 @@ class Capoeira(BaseOptimizer):
             self.task.set_block_idx(b)
             res = self.task.evaluate(self.incumbents + [challenger], self.predictor)
             vecs = self._get_objective_vectors(res)  # per-block vectors, shape (n_inc+1, n_obj)
-            incumbent_block = vecs[:-1]
+            incumbent_block = vecs[:-1] 
             challenger_block = vecs[-1]
 
             # running means
@@ -185,11 +185,13 @@ class Capoeira(BaseOptimizer):
                 challenger_mean += (challenger_block - challenger_mean) / t
                 incumbents_mean += (incumbent_block - incumbents_mean) / t  # type: ignore
 
-            if fold_vec is None:
+            if fold_vec is None:  # FIXME: should not be the case, when we init the old vector with infinity. Also we want to force a comparison after the first block!
                 fold_vec = challenger_mean.copy()
                 continue
 
-            if self._is_dominated(fold_vec, challenger_mean):
+            # NOTE: Intensification triggers a comparison between incumbents and challenger, when the challenger's objective vector form the last comparison is dominated by the new one.
+            # If this is not the case, eval keeps going.                                       
+            if self._is_dominated(fold_vec, challenger_mean): 
                 continue
 
             fold_vec = challenger_mean.copy() # TODO RENAME
@@ -205,7 +207,7 @@ class Capoeira(BaseOptimizer):
 
     def _get_closest_incumbent(self, challenger_vec: np.ndarray, incumbent_vecs: np.ndarray) -> np.ndarray:
         """Return the vector of the geometrically closest incumbent."""
-        all_vecs = np.vstack([incumbent_vecs, challenger_vec[None, :]])
+        all_vecs = np.vstack([incumbent_vecs, challenger_vec[None, :]]) # FIXME: Thesis Implementation and MO-SMAC uses ALL objective vectors present in the Runhistory. So global normilization using all observed objective values so far.
         min_b = np.min(all_vecs, axis=0)
         max_b = np.max(all_vecs, axis=0)
         rng = max_b - min_b
@@ -219,10 +221,10 @@ class Capoeira(BaseOptimizer):
         return incumbent_vecs[idx]
 
     def _update_incumbent_front(self, blocks: Optional[set[int]] = None) -> None:
-        if not self.incumbents:
+        if not self.incumbents: # NOTE: Should not happen. Does this have silent bug potential?
             return
 
-        if blocks is None:
+        if blocks is None: # NOTE: Should not happen. Does this have silent bug potential?
             res = self.task.evaluate(self.incumbents, self.predictor, eval_strategy="evaluated")
         else:
             self.task.set_block_idx(list(sorted(blocks)))  # sorted for deterministic behaviour
@@ -238,7 +240,7 @@ class Capoeira(BaseOptimizer):
         self.incumbents = new_incumbents
         self.challengers.extend(demoted)
 
-    def _get_objective_vectors(self, result) -> np.ndarray:
+    def _get_objective_vectors(self, result) -> np.ndarray: # NOTE: This is per Block, right?
         # If the task is multi-objective, include all objective dimensions, else single objective.
         if isinstance(self.task, MultiObjectiveTask):
             agg_scores = np.stack(result.agg_scores, axis=1)  # shape: (n_prompts, n_objectives)
@@ -250,7 +252,7 @@ class Capoeira(BaseOptimizer):
         cost_scalar = self.cost_per_input_token * agg_input_tokens + self.cost_per_output_token * agg_output_tokens
         cost_scalar = cost_scalar.reshape(-1, 1)
 
-        return np.hstack([agg_scores, -cost_scalar])
+        return np.hstack([agg_scores, -cost_scalar]) # FIXME: Should flip the sign for max tasks to make all min. So for Performance. NOT the sign for cost, which is a 'natural' min. Or am i missing something? 
 
     def _advance_one_incumbent(self) -> None:
         if not self.incumbents:
@@ -335,7 +337,7 @@ class Capoeira(BaseOptimizer):
                 victim_idx = worst_front_indices[local_worst_idx]
 
                 self.challengers.pop(victim_idx)
-                continue
+                continue 
 
             # --- PRUNE FROM INCUMBENTS ---
             # Fallback: If we only have incumbents, remove the least unique one.
@@ -357,7 +359,8 @@ class Capoeira(BaseOptimizer):
 
         common = set.intersection(*block_sets)
         return common
-
+        
+# NOTE: I didnt check the following. I assume they are fine. Maybe they should be moved into a util file and imported. Specially as they are also needed for the NSGA2 version.
     @staticmethod
     def _non_dominated_sort(obj_vectors: np.ndarray) -> List[List[int]]:
         """Perform fast non-dominated sorting (NSGA-II) in a vectorized manner."""
