@@ -164,7 +164,7 @@ class Capoeira(BaseOptimizer):
         incumbents_mean: Optional[np.ndarray] = None
         t = 0
 
-        fold_vec = np.full((self.n_objectives,), -np.inf)
+        fold_vec = np.full((self.n_objectives,), np.inf)
 
         while remaining_blocks:
             b = random.choice(tuple(remaining_blocks))
