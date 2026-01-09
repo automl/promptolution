@@ -146,13 +146,13 @@ def test_capoeira_select_survivors_handles_heterogeneous_blocks(mock_meta_llm, m
     c1, c2 = Prompt("c1"), Prompt("c2")
     task.eval_blocks = {str(c1): {0}, str(c2): {0, 1}}
     optimizer.incumbents = [Prompt("i1"), Prompt("i2")]
-    optimizer.challengers = [c1, c2]
+    optimizer.non_incumbents = [c1, c2]
     optimizer.population_size = 3
 
     optimizer._select_survivors()
 
-    assert len(optimizer.challengers) == 1
-    assert optimizer.challengers[0].instruction == "c2"
+    assert len(optimizer.non_incumbents) == 1
+    assert optimizer.non_incumbents[0].instruction == "c2"
 
 
 def test_capoeira_select_survivors_homogeneous_prunes_lowest(mock_meta_llm, mock_predictor):
@@ -191,13 +191,13 @@ def test_capoeira_select_survivors_homogeneous_prunes_lowest(mock_meta_llm, mock
     )
 
     optimizer.incumbents = [Prompt("inc")]  # keeps population pressure
-    optimizer.challengers = [c1, c2]
+    optimizer.non_incumbents = [c1, c2]
     optimizer.population_size = 2
 
     optimizer._select_survivors()
 
-    assert len(optimizer.challengers) == 1
-    assert optimizer.challengers[0].instruction == "c2"
+    assert len(optimizer.non_incumbents) == 1
+    assert optimizer.non_incumbents[0].instruction == "c2"
 
 
 def test_capoeira_select_survivors_prefers_lower_cost(mock_meta_llm, mock_predictor):
@@ -230,13 +230,13 @@ def test_capoeira_select_survivors_prefers_lower_cost(mock_meta_llm, mock_predic
     )
 
     optimizer.incumbents = []
-    optimizer.challengers = [Prompt("cheap"), Prompt("expensive")]
+    optimizer.non_incumbents = [Prompt("cheap"), Prompt("expensive")]
     optimizer.population_size = 1
 
     optimizer._select_survivors()
 
-    assert len(optimizer.challengers) == 1
-    assert optimizer.challengers[0].instruction == "cheap"
+    assert len(optimizer.non_incumbents) == 1
+    assert optimizer.non_incumbents[0].instruction == "cheap"
 
 
 def test_capoeira_step_invokes_hooks(mock_meta_llm, mock_predictor, mock_df):
@@ -408,7 +408,7 @@ def test_capoeira_do_intensification_dominated_challenger(monkeypatch, mock_meta
     ):
         optimizer._do_intensification(challenger)
 
-    assert challenger in optimizer.challengers
+    assert challenger in optimizer.non_incumbents
     assert challenger not in optimizer.incumbents
 
 
@@ -441,7 +441,7 @@ def test_capoeira_update_incumbent_front_demotes(mock_meta_llm, mock_predictor):
     optimizer._update_incumbent_front()
 
     assert optimizer.incumbents == [inc1]
-    assert inc2 in optimizer.challengers
+    assert inc2 in optimizer.non_incumbents
 
 
 def test_capoeira_advance_one_incumbent_no_gapblocks(mock_meta_llm, mock_predictor):
@@ -552,13 +552,13 @@ def test_capoeira_select_survivors_heterogeneous_removes_lowest(mock_meta_llm, m
         df_few_shots=task.pop_datapoints(n=1),
     )
     optimizer.incumbents = []
-    optimizer.challengers = [c1, c2]
+    optimizer.non_incumbents = [c1, c2]
     optimizer.population_size = 1
 
     with patch("random.choice", side_effect=lambda seq: list(seq)[0]):
         optimizer._select_survivors()
 
-    assert len(optimizer.challengers) == 1
+    assert len(optimizer.non_incumbents) == 1
 
 
 def test_capoeira_select_survivors_incumbent_only(mock_meta_llm, mock_predictor):
@@ -587,7 +587,7 @@ def test_capoeira_select_survivors_incumbent_only(mock_meta_llm, mock_predictor)
         df_few_shots=task.pop_datapoints(n=1),
     )
     optimizer.incumbents = [inc1, inc2]
-    optimizer.challengers = []
+    optimizer.non_incumbents = []
     optimizer.population_size = 1
 
     optimizer._select_survivors()

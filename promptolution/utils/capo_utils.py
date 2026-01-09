@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import random
 
-from typing import List
+from typing import List, Optional, Callable
 
 from promptolution.utils.formatting import extract_from_tag
 from promptolution.utils.prompt import Prompt
@@ -53,12 +53,16 @@ def build_few_shot_examples(
 def perform_crossover(
     parents: List[Prompt],
     optimizer,
+    parent_select_func: Optional[Callable] = None,
 ) -> List[Prompt]:
     """Generate crossover offspring prompts."""
     crossover_prompts: List[str] = []
     offspring_few_shots: List[List[str]] = []
     for _ in range(optimizer.crossovers_per_iter):
-        mother, father = parents if len(parents) == 2 else random.sample(parents, 2)
+        if parent_select_func:
+            mother, father = parent_select_func(parents)
+        else:
+            mother, father = random.sample(parents, 2)
         crossover_prompt = (
             optimizer.crossover_template.replace("<mother>", mother.instruction)
             .replace("<father>", father.instruction)

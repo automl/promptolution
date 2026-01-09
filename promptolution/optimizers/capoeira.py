@@ -5,7 +5,7 @@ import random
 import numpy as np
 import pandas as pd
 
-from typing import TYPE_CHECKING, List, Optional
+from typing import TYPE_CHECKING, List, Optional, Tuple
 
 if TYPE_CHECKING:  # pragma: no cover
     from promptolution.utils.callbacks import BaseCallback
@@ -41,7 +41,7 @@ class Capoeira(BaseOptimizer):
         crossovers_per_iter: int = 4,
         upper_shots: int = 5,
         cost_per_input_token: float = 1.0,
-        cost_per_output_token: float = 0.0,
+        cost_per_output_token: float = 1.0,
         check_fs_accuracy: bool = True,
         create_fs_reasoning: bool = True,
         df_few_shots: Optional[pd.DataFrame] = None,
@@ -85,9 +85,14 @@ class Capoeira(BaseOptimizer):
         self.df_few_shots = df_few_shots if df_few_shots is not None else task.pop_datapoints(frac=0.1)
 
         self.incumbents: List[Prompt] = self.prompts
-        self.challengers: List[Prompt] = []
+        self.non_incumbents: List[Prompt] = []
         self.population_size = len(self.prompts)
-
+        
+        if self.task.task_type == "multi":
+            self.n_objectives = len(self.task.tasks) + 1  # +1 for cost objective
+        else:
+            self.n_objectives = 2  # single objective + cost objective
+            
         if "block" not in self.task.eval_strategy:
             logger.warning(
                 f"ℹ️ CAPO requires 'block' in the eval_strategy, but got {self.task.eval_strategy}. Setting eval_strategy to 'sequential_block'."
@@ -116,14 +121,14 @@ class Capoeira(BaseOptimizer):
         initial_vectors = self._get_objective_vectors(init_result)
         fronts = self._non_dominated_sort(initial_vectors)
         self.incumbents = [population[i] for i in fronts[0]]
-        self.challengers = [population[i] for front in fronts[1:] for i in front]
+        self.non_incumbents = [population[i] for front in fronts[1:] for i in front]
 
         # keep self.prompts as a "view" if base class expects it
         self.scores = initial_vectors[:, 0].tolist()
 
     def _step(self) -> List[Prompt]:
-        # 1) generate challengers (random parent selection happens inside perform_crossover)
-        offsprings = perform_crossover(self.prompts, self)
+        # 1) generate challengers
+        offsprings = perform_crossover(self.prompts, self, self._tournament_selection)
         new_challengers = perform_mutation(offsprings, self)
 
         # 2) intensify each challenger; after each, advance incumbents + prune
@@ -142,10 +147,6 @@ class Capoeira(BaseOptimizer):
         return self.prompts
 
     def _do_intensification(self, challenger: Prompt) -> None:
-        if not self.incumbents:
-            self.incumbents.append(challenger)
-            return
-
         common_blocks = self._get_common_blocks(self.incumbents)
 
         # bootstrap if no common blocks yet
@@ -163,7 +164,7 @@ class Capoeira(BaseOptimizer):
         incumbents_mean: Optional[np.ndarray] = None
         t = 0
 
-        fold_vec: Optional[np.ndarray] = None
+        fold_vec = np.full((self.n_objectives,), -np.inf)
 
         while remaining_blocks:
             b = random.choice(tuple(remaining_blocks))
@@ -185,27 +186,29 @@ class Capoeira(BaseOptimizer):
                 challenger_mean += (challenger_block - challenger_mean) / t
                 incumbents_mean += (incumbent_block - incumbents_mean) / t  # type: ignore
 
-            if fold_vec is None:
-                fold_vec = challenger_mean.copy()
-                continue
-
             if self._is_dominated(fold_vec, challenger_mean):
                 continue
 
             fold_vec = challenger_mean.copy() # TODO RENAME
 
-            closest_inc = self._get_closest_incumbent(challenger_mean, incumbents_mean)  # type: ignore
-            if self._is_dominated(challenger_mean, closest_inc):
-                self.challengers.append(challenger)
+            closest_incumbent = self._get_closest_incumbent(challenger)  # type: ignore
+            if self._is_dominated(challenger_mean, closest_incumbent):
+                self.non_incumbents.append(challenger)
                 return
 
         # survived all common blocks -> admit and update front restricted to common_blocks
         self.incumbents.append(challenger)
         self._update_incumbent_front(blocks=common_blocks)
 
-    def _get_closest_incumbent(self, challenger_vec: np.ndarray, incumbent_vecs: np.ndarray) -> np.ndarray:
+    def _get_closest_incumbent(self, challenger) -> np.ndarray:
         """Return the vector of the geometrically closest incumbent."""
-        all_vecs = np.vstack([incumbent_vecs, challenger_vec[None, :]])
+        challenger_res = self.task.evaluate(challenger, self.predictor, eval_strategy="evaluated")
+        challenger_vec = self._get_objective_vectors(challenger_res)
+        
+        incumbent_res = self.task.evaluate(self.incumbents, self.predictor, eval_strategy="evaluated")
+        incumbent_vecs = self._get_objective_vectors(incumbent_res)
+        
+        all_vecs = np.vstack([incumbent_vecs, challenger_vec])
         min_b = np.min(all_vecs, axis=0)
         max_b = np.max(all_vecs, axis=0)
         rng = max_b - min_b
@@ -219,9 +222,6 @@ class Capoeira(BaseOptimizer):
         return incumbent_vecs[idx]
 
     def _update_incumbent_front(self, blocks: Optional[set[int]] = None) -> None:
-        if not self.incumbents:
-            return
-
         if blocks is None:
             res = self.task.evaluate(self.incumbents, self.predictor, eval_strategy="evaluated")
         else:
@@ -236,7 +236,7 @@ class Capoeira(BaseOptimizer):
         demoted = [self.incumbents[i] for front in fronts[1:] for i in front]
 
         self.incumbents = new_incumbents
-        self.challengers.extend(demoted)
+        self.non_incumbents.extend(demoted)
 
     def _get_objective_vectors(self, result) -> np.ndarray:
         # If the task is multi-objective, include all objective dimensions, else single objective.
@@ -288,10 +288,10 @@ class Capoeira(BaseOptimizer):
 
     def _select_survivors(self) -> None:
         """Prune population via Pareto logic to enforce size constraints."""
-        while len(self.incumbents) + len(self.challengers) > self.population_size:
-            if len(self.challengers) > 0:
+        while len(self.incumbents) + len(self.non_incumbents) > self.population_size:
+            if len(self.non_incumbents) > 0:
                 # 1. Check Heterogeneity (Fairness Check)
-                chal_blocks_map = self.task.get_evaluated_blocks(self.challengers)
+                chal_blocks_map = self.task.get_evaluated_blocks(self.non_incumbents)
                 block_sets = list(chal_blocks_map.values())
 
                 first_set = block_sets[0]
@@ -308,14 +308,14 @@ class Capoeira(BaseOptimizer):
                     candidates = [i for i, c in enumerate(counts) if c == min_count]
                     victim_idx = random.choice(candidates)
 
-                    self.challengers.pop(victim_idx)
+                    self.non_incumbents.pop(victim_idx)
                     continue
 
                 # CASE B: Homogeneous (Fair comparison).
                 # Use NDS + Crowding Distance.
 
                 # Get objective vectors for all challengers (safe because blocks are identical)
-                res = self.task.evaluate(self.challengers, self.predictor, eval_strategy="evaluated")
+                res = self.task.evaluate(self.non_incumbents, self.predictor, eval_strategy="evaluated")
                 vecs = self._get_objective_vectors(res)
 
                 # Perform Non-Dominated Sort
@@ -334,7 +334,7 @@ class Capoeira(BaseOptimizer):
                 # Map back to the main challenger list index
                 victim_idx = worst_front_indices[local_worst_idx]
 
-                self.challengers.pop(victim_idx)
+                self.non_incumbents.pop(victim_idx)
                 continue
 
             # --- PRUNE FROM INCUMBENTS ---
@@ -357,6 +357,46 @@ class Capoeira(BaseOptimizer):
 
         common = set.intersection(*block_sets)
         return common
+    
+    def _select_parent_from_pool(self, selection_pool: List[Prompt]) -> Prompt:
+        """Tournament-pick a parent, preferring incumbents and using crowding for ties."""
+        p1, p2 = random.sample(selection_pool, 2)
+
+        if p1 in self.incumbents and p2 in self.incumbents:
+            return self._pick_incumbent_by_crowding(p1, p2)
+        if p1 in self.incumbents:
+            return p1
+        if p2 in self.incumbents:
+            return p2
+
+        return random.choice((p1, p2))
+
+
+    def _pick_incumbent_by_crowding(self, p1: Prompt, p2: Prompt) -> Prompt:
+        """Break incumbent ties using crowding distance over common evaluated blocks."""
+        res = self.task.evaluate(self.incumbents, self.predictor, eval_strategy="evaluated")
+        inc_vectors = self._get_objective_vectors(res)
+        inc_distances = self._calculate_crowding_distance(inc_vectors)
+
+        p1_idx = self.incumbents.index(p1)
+        p2_idx = self.incumbents.index(p2)
+        if inc_distances[p1_idx] > inc_distances[p2_idx]:
+            return p1
+        if inc_distances[p2_idx] > inc_distances[p1_idx]:
+            return p2
+        return random.choice((p1, p2))
+
+
+    def _tournament_selection(self) -> Tuple[Prompt, Prompt]:
+        """Pick two distinct parents via tournament selection."""
+        selection_pool = self.incumbents + self.non_incumbents
+        parent1 = self._select_parent_from_pool(selection_pool)
+
+        parent2 = self._select_parent_from_pool(selection_pool)
+        while parent2 == parent1:
+            parent2 = self._select_parent_from_pool(selection_pool)
+
+        return parent1, parent2
 
     @staticmethod
     def _non_dominated_sort(obj_vectors: np.ndarray) -> List[List[int]]:
