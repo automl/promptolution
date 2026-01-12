@@ -147,6 +147,12 @@ class Capoeira(BaseOptimizer):
         return self.prompts
 
     def _do_intensification(self, challenger: Prompt) -> None:
+        if challenger in self.incumbents:
+            return
+        if challenger in self.non_incumbents:
+            # remove from non-incumbents to re-evaluate
+            self.non_incumbents.remove(challenger)
+            
         common_blocks = self._get_common_blocks(self.incumbents)
 
         # bootstrap if no common blocks yet
@@ -330,8 +336,9 @@ class Capoeira(BaseOptimizer):
                 dists = self._calculate_crowding_distance(worst_front_vecs)
 
                 # Find index relative to the worst front list
-                local_worst_idx = int(np.argmin(dists))
-                # Map back to the main challenger list index
+                min_dist = np.min(dists)
+                tied_indices = np.where(dists == min_dist)[0]
+                local_worst_idx = np.random.choice(tied_indices)
                 victim_idx = worst_front_indices[local_worst_idx]
 
                 self.non_incumbents.pop(victim_idx)
@@ -369,12 +376,52 @@ class Capoeira(BaseOptimizer):
         if p2 in self.incumbents:
             return p2
 
+        # both are non-incumbents
+        blocks_map = self.task.get_evaluated_blocks([p1, p2])
+        blocks1 = blocks_map.get(str(p1), set())
+        blocks2 = blocks_map.get(str(p2), set())
+
+        if blocks1 == blocks2: # both evaluated on same blocks
+            # use NDS + Crowding Distance
+            self.task.set_block_idx(list(sorted(blocks1)))
+            res = self.task.evaluate([p1, p2], self.predictor)
+            # check if dominated
+            vecs = self._get_objective_vectors(res)
+            if self._is_dominated(vecs[0], vecs[1]):
+                return p2
+            if self._is_dominated(vecs[1], vecs[0]):
+                return p1
+            # tie-breaker: crowding distance
+            distances = self._calculate_crowding_distance(vecs)
+            if distances[0] > distances[1]:
+                return p1
+            if distances[1] > distances[0]:
+                return p2
+            
+            # same crowding distance: random
+        
+        # use weaker dominance definition
+        # eval on common blocks only
+        common_blocks = blocks1 & blocks2
+        if common_blocks:
+            self.task.set_block_idx(list(sorted(common_blocks)))
+            res = self.task.evaluate([p1, p2], self.predictor)
+            vecs = self._get_objective_vectors(res)
+            
+            if self._is_weakly_dominated(vecs[0], vecs[1]):
+                return p2
+            if self._is_weakly_dominated(vecs[1], vecs[0]):
+                return p1
+
         return random.choice((p1, p2))
 
 
     def _pick_incumbent_by_crowding(self, p1: Prompt, p2: Prompt) -> Prompt:
         """Break incumbent ties using crowding distance over common evaluated blocks."""
-        res = self.task.evaluate(self.incumbents, self.predictor, eval_strategy="evaluated")
+        common_blocks = self._get_common_blocks([p1, p2])
+        if common_blocks:
+            self.task.set_block_idx(common_blocks)
+        res = self.task.evaluate(self.incumbents, self.predictor)
         inc_vectors = self._get_objective_vectors(res)
         inc_distances = self._calculate_crowding_distance(inc_vectors)
 
@@ -430,6 +477,11 @@ class Capoeira(BaseOptimizer):
     def _is_dominated(vec1, vec2):
         """Returns True if vec2 dominates vec1 in a maximize-all setting."""
         return np.all(vec2 >= vec1) and np.any(vec2 > vec1)
+    
+    @staticmethod
+    def _is_weakly_dominated(vec1, vec2):
+        """Returns True if vec2 weakly dominates vec1 in a maximize-all setting."""
+        return np.all(vec2 >= vec1)
 
     @staticmethod
     def _calculate_crowding_distance(obj_vectors: np.ndarray) -> np.ndarray:
