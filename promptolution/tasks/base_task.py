@@ -212,11 +212,11 @@ class BaseTask(ABC):
             seq_token_counts: List[float] = []
             for x, y in zip(xs, ys):
                 cache_key = self._cache_key(prompt, x, str(y))
-                seq_text = seq_cache.get(cache_key, "")
+                seq_text = seq_cache[cache_key]
                 seq_token_counts.append(token_counter(seq_text))
 
             prompt_input_tokens = prompt_tokens + input_token_counts
-            output_token_counts = np.maximum(np.array(seq_token_counts, dtype=float) - input_token_counts, 0.0)
+            output_token_counts = np.array(seq_token_counts, dtype=float) - input_token_counts
 
             per_prompt_inputs.append(np.asarray(prompt_input_tokens, dtype=float))
             per_prompt_outputs.append(output_token_counts)
@@ -224,8 +224,8 @@ class BaseTask(ABC):
         inputs_array = np.vstack(per_prompt_inputs)
         outputs_array = np.vstack(per_prompt_outputs)
 
-        agg_input_tokens = inputs_array.mean(axis=1) if inputs_array.size else np.array([])
-        agg_output_tokens = outputs_array.mean(axis=1) if outputs_array.size else np.array([])
+        agg_input_tokens = inputs_array.mean(axis=1)
+        agg_output_tokens = outputs_array.mean(axis=1)
 
         return inputs_array, outputs_array, agg_input_tokens, agg_output_tokens
 
