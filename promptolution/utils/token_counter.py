@@ -26,9 +26,5 @@ def get_token_counter(llm: "BaseLLM") -> Callable[[str], float]:
         A callable that takes a text input and returns the token count.
 
     """
-    if llm.tokenizer is not None:
-        tokenizer: "PreTrainedTokenizer" = llm.tokenizer
-        return lambda x: float(len(tokenizer.encode(x)))
-    else:
-        logger.warning("⚠️ The LLM does not have a tokenizer. Using simple token count.")
-        return lambda x: float(len(x.split()))
+
+    return lambda x: float(len(x.split()))
