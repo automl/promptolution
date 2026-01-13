@@ -48,6 +48,22 @@ class Prompt:
         """Return the string representation of the prompt."""
         return self.construct_prompt()
 
+    def __eq__(self, other: object) -> bool:
+        """Structural equality for use in lists, sets, and dict keys."""
+        if not isinstance(other, Prompt):
+            return False
+        return (
+            self.instruction == other.instruction
+            and self.few_shots == other.few_shots
+            and self.downstream_template == other.downstream_template
+        )
+
+    def __hash__(self) -> int:
+        return hash((self.instruction, tuple(self.few_shots), self.downstream_template))
+    
+    
+    
+
 
 def sort_prompts_by_scores(
     prompts: List[Prompt], scores: Union[Sequence[float], np.ndarray], top_k: Optional[int] = None

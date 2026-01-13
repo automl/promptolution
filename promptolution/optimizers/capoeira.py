@@ -400,17 +400,18 @@ class Capoeira(BaseOptimizer):
             
             # same crowding distance: random
         
-        # use weaker dominance definition
-        # eval on common blocks only
-        common_blocks = blocks1 & blocks2
-        if common_blocks:
-            self.task.set_block_idx(list(sorted(common_blocks)))
+        # weaker dominance: larger eval set may dominate smaller on the smaller's blocks
+        elif blocks1.issubset(blocks2) and blocks1:
+            self.task.set_block_idx(list(sorted(blocks1)))
             res = self.task.evaluate([p1, p2], self.predictor)
             vecs = self._get_objective_vectors(res)
-            
-            if self._is_weakly_dominated(vecs[0], vecs[1]):
+            if self._is_dominated(vecs[0], vecs[1]):
                 return p2
-            if self._is_weakly_dominated(vecs[1], vecs[0]):
+        elif blocks2.issubset(blocks1) and blocks2:
+            self.task.set_block_idx(list(sorted(blocks2)))
+            res = self.task.evaluate([p1, p2], self.predictor)
+            vecs = self._get_objective_vectors(res)
+            if self._is_dominated(vecs[1], vecs[0]):
                 return p1
 
         return random.choice((p1, p2))
@@ -418,7 +419,7 @@ class Capoeira(BaseOptimizer):
 
     def _pick_incumbent_by_crowding(self, p1: Prompt, p2: Prompt) -> Prompt:
         """Break incumbent ties using crowding distance over common evaluated blocks."""
-        common_blocks = self._get_common_blocks([p1, p2])
+        common_blocks = self._get_common_blocks(self.incumbents)
         if common_blocks:
             self.task.set_block_idx(common_blocks)
         res = self.task.evaluate(self.incumbents, self.predictor)
@@ -477,11 +478,6 @@ class Capoeira(BaseOptimizer):
     def _is_dominated(vec1, vec2):
         """Returns True if vec2 dominates vec1 in a maximize-all setting."""
         return np.all(vec2 >= vec1) and np.any(vec2 > vec1)
-    
-    @staticmethod
-    def _is_weakly_dominated(vec1, vec2):
-        """Returns True if vec2 weakly dominates vec1 in a maximize-all setting."""
-        return np.all(vec2 >= vec1)
 
     @staticmethod
     def _calculate_crowding_distance(obj_vectors: np.ndarray) -> np.ndarray:
