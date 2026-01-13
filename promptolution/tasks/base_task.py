@@ -95,7 +95,7 @@ class BaseTask(ABC):
         self.eval_cache: Dict[Tuple[str, str, str], float] = {}  # (prompt, x, y): scores per datapoint
         self.seq_cache: Dict[Tuple[str, str, str], str] = {}  # (prompt, x, y): raw model output per datapoint
 
-        self.prompt_evaluated_blocks: Dict[str, set[int]] = {}  # prompt_str: set of evaluated block indices
+        self.prompt_evaluated_blocks: Dict[Prompt, List[int]] = {}  # prompt_str: set of evaluated block indices
 
     def subsample(self, eval_strategy: Optional["EvalStrategy"] = None) -> Tuple[List[str], List[str]]:
         """Subsample the dataset based on the specified parameters.
@@ -283,9 +283,9 @@ class BaseTask(ABC):
         # Record evaluated block for block strategies
         for prompt in prompts_list:
             if isinstance(self.block_idx, list):
-                self.prompt_evaluated_blocks.setdefault(str(prompt), set()).update(self.block_idx)
+                self.prompt_evaluated_blocks.setdefault(prompt, []).extend(self.block_idx)
             else:
-                self.prompt_evaluated_blocks.setdefault(str(prompt), set()).add(self.block_idx)
+                self.prompt_evaluated_blocks.setdefault(prompt, []).append(self.block_idx)
 
         input_tokens, output_tokens, agg_input_tokens, agg_output_tokens = self._compute_costs(
             prompts_list, xs, ys, self.seq_cache, predictor
@@ -378,6 +378,6 @@ class BaseTask(ABC):
 
         self.block_idx = idx
 
-    def get_evaluated_blocks(self, prompts: List[Prompt]) -> Dict[str, set[int]]:
+    def get_evaluated_blocks(self, prompts: List[Prompt]) -> Dict[Prompt, List[int]]:
         """Return mapping of prompt string to evaluated block indices."""
-        return {str(p): set(self.prompt_evaluated_blocks.get(str(p), set())) for p in prompts}
+        return {p: list(self.prompt_evaluated_blocks.get(p, [])) for p in prompts}

@@ -89,7 +89,7 @@ class Capoeira(BaseOptimizer):
         self.population_size = len(self.prompts)
         
         if self.task.task_type == "multi":
-            self.n_objectives = len(self.task.tasks) + 1  # +1 for cost objective
+            self.n_objectives = len(self.task.tasks) + 1  # +1 for cost objective  # type: ignore
         else:
             self.n_objectives = 2  # single objective + cost objective
             
@@ -170,7 +170,7 @@ class Capoeira(BaseOptimizer):
         incumbents_mean: Optional[np.ndarray] = None
         t = 0
 
-        fold_vec = np.full((self.n_objectives,), np.inf)
+        old_scores = np.full((self.n_objectives,), np.inf)
 
         while remaining_blocks:
             b = random.choice(tuple(remaining_blocks))
@@ -192,10 +192,10 @@ class Capoeira(BaseOptimizer):
                 challenger_mean += (challenger_block - challenger_mean) / t
                 incumbents_mean += (incumbent_block - incumbents_mean) / t  # type: ignore
 
-            if self._is_dominated(fold_vec, challenger_mean):
+            if self._is_dominated(old_scores, challenger_mean):
                 continue
 
-            fold_vec = challenger_mean.copy() # TODO RENAME
+            old_scores = challenger_mean.copy() # type: ignore
 
             closest_incumbent = self._get_closest_incumbent(challenger)  # type: ignore
             if self._is_dominated(challenger_mean, closest_incumbent):
@@ -262,7 +262,7 @@ class Capoeira(BaseOptimizer):
         if not self.incumbents:
             return
 
-        blocks_map = self.task.get_evaluated_blocks(self.incumbents)  # Dict[str -> Set[int]]
+        blocks_map = self.task.get_evaluated_blocks(self.incumbents)
         inc_keys = [str(inc) for inc in self.incumbents]
 
         # least evaluated incumbents
@@ -274,9 +274,9 @@ class Capoeira(BaseOptimizer):
         # union over incumbents
         union_blocks: set[int] = set()
         for inc in self.incumbents:
-            union_blocks |= set(blocks_map[str(inc)])
+            union_blocks |= set(blocks_map[inc])
 
-        chosen_blocks = set(blocks_map[str(chosen_inc)])
+        chosen_blocks = set(blocks_map[chosen_inc])
 
         # gap-first, else brand-new
         gap_blocks = union_blocks - chosen_blocks
@@ -297,8 +297,8 @@ class Capoeira(BaseOptimizer):
         while len(self.incumbents) + len(self.non_incumbents) > self.population_size:
             if len(self.non_incumbents) > 0:
                 # 1. Check Heterogeneity (Fairness Check)
-                chal_blocks_map = self.task.get_evaluated_blocks(self.non_incumbents)
-                block_sets = list(chal_blocks_map.values())
+                blocks_map = self.task.get_evaluated_blocks(self.non_incumbents)
+                block_sets = list(blocks_map.values())
 
                 first_set = block_sets[0]
                 # Are all challengers evaluated on the exact same set of blocks?
@@ -354,15 +354,16 @@ class Capoeira(BaseOptimizer):
             victim_idx = int(np.argmin(dists))
             self.incumbents.pop(victim_idx)
 
-    def _get_common_blocks(self, prompts: List[Prompt]) -> set:
+    def _get_common_blocks(self, prompts: List[Prompt]) -> set[int]:
         """Get the set of block indices that have been evaluated by all given prompts."""
-        per_prompt = self.task.get_evaluated_blocks(prompts)  # Dict[prompt -> Set[int]]
+        per_prompt = self.task.get_evaluated_blocks(prompts)  # Dict[prompt -> Collection[int]]
         block_sets = list(per_prompt.values())
 
         if not block_sets:
             return set()
 
-        common = set.intersection(*block_sets)
+        # Some task implementations may return lists instead of sets; normalize for typing and correctness.
+        common = set.intersection(*(set(s) for s in block_sets))
         return common
     
     def _select_parent_from_pool(self, selection_pool: List[Prompt]) -> Prompt:
@@ -378,27 +379,42 @@ class Capoeira(BaseOptimizer):
 
         # both are non-incumbents
         blocks_map = self.task.get_evaluated_blocks([p1, p2])
-        blocks1 = blocks_map.get(str(p1), set())
-        blocks2 = blocks_map.get(str(p2), set())
+        blocks1 = blocks_map[p1]
+        blocks2 = blocks_map[p2]
 
-        if blocks1 == blocks2: # both evaluated on same blocks
-            # use NDS + Crowding Distance
-            self.task.set_block_idx(list(sorted(blocks1)))
-            res = self.task.evaluate([p1, p2], self.predictor)
-            # check if dominated
-            vecs = self._get_objective_vectors(res)
-            if self._is_dominated(vecs[0], vecs[1]):
-                return p2
-            if self._is_dominated(vecs[1], vecs[0]):
-                return p1
-            # tie-breaker: crowding distance
-            distances = self._calculate_crowding_distance(vecs)
-            if distances[0] > distances[1]:
-                return p1
-            if distances[1] > distances[0]:
-                return p2
-            
-            # same crowding distance: random
+        if blocks1 == blocks2:  # both evaluated on same blocks
+            # Use full NDS + crowding on all non-incumbents that share this block set
+            blocks_map = self.task.get_evaluated_blocks(self.non_incumbents)
+            same_block = [p for p in self.non_incumbents if blocks_map[p] == blocks1]
+
+            if len(same_block) >= 2:
+                self.task.set_block_idx(list(sorted(blocks1)))
+                res = self.task.evaluate(same_block, self.predictor)
+                vecs = self._get_objective_vectors(res)
+
+                fronts = self._non_dominated_sort(vecs)
+                idx1 = same_block.index(p1)
+                idx2 = same_block.index(p2)
+
+                ranks = {idx: rank for rank, front in enumerate(fronts) for idx in front}
+                r1 = ranks[idx1]
+                r2 = ranks[idx2]
+
+                if r1 < r2:
+                    return p1
+                if r2 < r1:
+                    return p2
+
+                front_indices = fronts[r1]
+                front_vecs = vecs[front_indices]
+                dists = self._calculate_crowding_distance(front_vecs)
+
+                pos1 = front_indices.index(idx1)
+                pos2 = front_indices.index(idx2)
+                if dists[pos1] > dists[pos2]:
+                    return p1
+                if dists[pos2] > dists[pos1]:
+                    return p2
         
         # weaker dominance: larger eval set may dominate smaller on the smaller's blocks
         elif blocks1.issubset(blocks2) and blocks1:
