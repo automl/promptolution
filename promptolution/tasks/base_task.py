@@ -206,14 +206,15 @@ class BaseTask(ABC):
         per_prompt_outputs: List[np.ndarray] = []
 
         input_token_counts = np.array([token_counter(x) for x in xs], dtype=float)
-
         for prompt in prompts:
             prompt_tokens = token_counter(prompt.construct_prompt())
             seq_token_counts: List[float] = []
             for x, y in zip(xs, ys):
                 cache_key = self._cache_key(prompt, x, str(y))
                 seq_text = seq_cache[cache_key]
-                seq_token_counts.append(token_counter(seq_text))
+                prefix = f"{x}\n"
+                gen_text = seq_text[len(prefix):] if seq_text.startswith(prefix) else seq_text
+                seq_token_counts.append(token_counter(gen_text))
 
             prompt_input_tokens = prompt_tokens + input_token_counts
             output_token_counts = np.array(seq_token_counts, dtype=float) - input_token_counts
