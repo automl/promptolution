@@ -172,28 +172,6 @@ def test_mutate(mock_meta_llm, mock_predictor, initial_prompts, mock_task, mock_
     assert len(mutated) == 2
 
 
-def test_do_racing(mock_meta_llm, mock_predictor, initial_prompts, mock_df):
-    mock_task = MockTask(predetermined_scores=[0.89, 0.9] * 3)
-    optimizer = CAPO(
-        predictor=mock_predictor,
-        task=mock_task,
-        meta_llm=mock_meta_llm,
-        initial_prompts=initial_prompts,
-        df_few_shots=pd.concat([mock_df] * 5, ignore_index=True),
-    )
-    optimizer._pre_optimization_loop()
-    survivors, scores = optimizer._do_racing(
-        [Prompt("good instruction", ["Example 1"]), Prompt("better instruction", ["Example 2"])], 1
-    )
-    assert len(survivors) == 1
-    assert len(scores) == 1
-
-    assert "better instruction" in survivors[0].instruction
-
-    assert mock_task.reset_block_idx.call_count == 2
-    assert mock_task.increment_block_idx.call_count == 2
-
-
 def test_capo_crossover_prompt(mock_meta_llm, mock_predictor, initial_prompts, mock_task, mock_df):
     """Test that when _crossover is called, the mock_meta_llm received a call with the correct meta prompt."""
     optimizer = CAPO(

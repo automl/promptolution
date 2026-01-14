@@ -97,7 +97,7 @@ class BaseTask(ABC):
 
         self.prompt_evaluated_blocks: Dict[Prompt, List[int]] = {}  # prompt_str: set of evaluated block indices
 
-    def subsample(self, eval_strategy: Optional["EvalStrategy"] = None) -> Tuple[List[str], List[str]]:
+    def subsample(self, eval_strategy: Optional["EvalStrategy"] = None, block_idx: int | list[int] | None = None) -> Tuple[List[str], List[str]]:
         """Subsample the dataset based on the specified parameters.
 
         Args:
@@ -106,6 +106,11 @@ class BaseTask(ABC):
         Returns:
             Tuple[List[str], List[str]]: Subsampled input data and labels.
         """
+        if block_idx is not None and isinstance(block_idx, int):
+            block_idx = [block_idx]
+        
+        if block_idx is not None:
+            return [self.xs[i] for i in block_idx], [self.ys[i] for i in block_idx]
         if eval_strategy is None:
             eval_strategy = self.eval_strategy
 
@@ -181,7 +186,7 @@ class BaseTask(ABC):
             datapoint_seqs: List[str] = []
             for x, y in zip(xs, ys):
                 cache_key = self._cache_key(prompt, x, str(y))
-                datapoint_score = self.eval_cache.get(cache_key, np.nan)
+                datapoint_score = self.eval_cache[cache_key]
                 datapoint_scores.append(datapoint_score)
                 datapoint_seqs.append(self.seq_cache.get(cache_key, ""))
             score_rows.append(datapoint_scores)
@@ -246,6 +251,7 @@ class BaseTask(ABC):
         predictor: "BasePredictor",
         system_prompts: Optional[Union[str, List[str]]] = None,
         eval_strategy: Optional["EvalStrategy"] = None,
+        block_idx: int | list[int] | None = None,
     ) -> EvalResult:
         """Evaluate a set of prompts using a given predictor.
 
@@ -254,7 +260,7 @@ class BaseTask(ABC):
         """
         prompts_list: List[Prompt] = [prompts] if isinstance(prompts, Prompt) else list(prompts)
         eval_strategy = eval_strategy or self.eval_strategy
-        xs, ys = self.subsample(eval_strategy=eval_strategy)
+        xs, ys = self.subsample(eval_strategy=eval_strategy, block_idx=block_idx)
         (
             prompts_to_evaluate,
             xs_to_evaluate,
@@ -365,15 +371,12 @@ class BaseTask(ABC):
             raise ValueError("Block reset is only valid for block subsampling.")
         self.block_idx = 0
 
-    def set_block_idx(self, idx: Union[int, List[int]]) -> None:
+    def set_block_idx(self, idx: int) -> None:
         """Set the block index (or indices) for block subsampling strategies."""
         if "block" not in self.eval_strategy:
             raise ValueError("Block assignment is only valid for block subsampling.")
 
-        if isinstance(idx, list):
-            assert all(0 <= i < self.n_blocks for i in idx), "Block indices must be integers within valid range"
-        else:
-            assert isinstance(idx, int), "Block index must be an integer"
+        assert isinstance(idx, int), "Block index must be an integer"
 
         self.block_idx = idx
 
