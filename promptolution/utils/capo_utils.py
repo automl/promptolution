@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import random
 
-from typing import List, Optional, Callable
+from typing import Callable, List, Optional
 
 from promptolution.utils.formatting import extract_from_tag
 from promptolution.utils.prompt import Prompt

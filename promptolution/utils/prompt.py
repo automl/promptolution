@@ -59,10 +59,8 @@ class Prompt:
         )
 
     def __hash__(self) -> int:
+        """Hash function for use in sets and dict keys."""
         return hash((self.instruction, tuple(self.few_shots), self.downstream_template))
-    
-    
-    
 
 
 def sort_prompts_by_scores(

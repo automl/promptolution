@@ -40,7 +40,7 @@ def test_multi_objective_shares_block_and_caches():
 
     assert len(t1.eval_cache) == len(t2.eval_cache)
     assert res.input_tokens.shape[0] == 1
-    assert multi.prompt_evaluated_blocks[str(prompt)] == {1}
+    assert multi.prompt_evaluated_blocks[prompt] == [1]
 
 
 def test_multi_objective_requires_tasks():
@@ -73,7 +73,7 @@ def test_multi_objective_matches_individual_results():
     assert np.allclose(multi_res.agg_scores[0], res1.agg_scores)
     assert np.allclose(multi_res.agg_scores[1], res2.agg_scores)
     assert multi_res.sequences.shape == res1.sequences.shape
-    assert multi.prompt_evaluated_blocks[str(prompt)] == {1}
+    assert multi.prompt_evaluated_blocks[prompt] == [1]
 
 
 class ConstantTask(BaseTask):

@@ -8,7 +8,7 @@ import numpy as np
 
 from typing import Dict, List, Optional, Tuple
 
-from promptolution.tasks.base_task import BaseTask, EvalResult, EvalStrategy, TaskType
+from promptolution.tasks.base_task import BaseTask, EvalResult, EvalStrategy
 from promptolution.utils.prompt import Prompt
 
 
@@ -127,17 +127,16 @@ class MultiObjectiveTask(BaseTask):
 
             scores_array, agg_scores, seqs = task._collect_results_from_cache(prompts_list, xs, ys)
             input_tokens, output_tokens, agg_input_tokens, agg_output_tokens = task._compute_costs(
-                prompts_list, xs, ys, task.seq_cache, predictor
+                prompts_list, xs, ys, predictor
             )
 
             # Record evaluated block for block strategies
             for prompt in prompts_list:
-                block_set = task.prompt_evaluated_blocks.setdefault(str(prompt), set())
+                block_set = task.prompt_evaluated_blocks.setdefault(prompt, [])
                 if isinstance(task.block_idx, list):
-                    block_set.update(task.block_idx)
+                    block_set.extend(task.block_idx)
                 else:
-                    block_set.add(task.block_idx)
-
+                    block_set.append(task.block_idx)
             per_task_results.append(
                 EvalResult(
                     scores=scores_array,
@@ -156,7 +155,7 @@ class MultiObjectiveTask(BaseTask):
         # Mirror evaluated block bookkeeping using the first task for parity with BaseTask.
         first_task = self.tasks[0]
         first_result = per_task_results[0]
-        self.prompt_evaluated_blocks = {str(p): first_task.prompt_evaluated_blocks[str(p)] for p in prompts_list}
+        self.prompt_evaluated_blocks = {p: first_task.prompt_evaluated_blocks[p] for p in prompts_list}
 
         if self._scalarized_objective:
             return EvalResult(

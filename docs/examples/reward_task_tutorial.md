@@ -102,7 +102,7 @@ api_key = "YOUR_API_KEY"  # Replace with your Promptolution API key
 ```
 
 Here's an explanation of each configuration parameter in the ExperimentConfig:
-- `optimizer`: The algorithm used for prompt optimization. Currently we support "capo", "capoeira", "evopromptga", "evopromptde", and "opro". For this example, we use "capo" as it is capable of leveraging few-shot examples.
+- `optimizer`: The algorithm used for prompt optimization. Currently we support "capo", "evopromptga", "evopromptde", and "opro". For this example, we use "capo" as it is capable of leveraging few-shot examples.
 - `task_description`: A string describing the task you're optimizing prompts for. This is used to provide the meta-llm with context about your task.
 - `prompts`: A list of initial prompt strings that will be used as the starting point for optimization.
 - `n_steps`: The number of optimization steps to run. Higher values allow more exploration and refinement but require more API calls and computational resources.

@@ -21,7 +21,6 @@ from promptolution.helpers import (
     run_optimization,
 )
 from promptolution.optimizers.capo import CAPO
-from promptolution.optimizers.capoeira import Capoeira
 from promptolution.optimizers.evoprompt_de import EvoPromptDE
 from promptolution.optimizers.evoprompt_ga import EvoPromptGA
 from promptolution.optimizers.opro import OPRO
@@ -406,10 +405,6 @@ def test_get_optimizer_variants():
     opt = get_optimizer(pred, MockLLM(), task, optimizer="capo", config=cfg)
 
     assert isinstance(opt, CAPO)
-
-    opt2 = get_optimizer(pred, MockLLM(), task, optimizer="capoeira", config=cfg)
-
-    assert isinstance(opt2, Capoeira)
 
     opt3 = get_optimizer(pred, MockLLM(), task, optimizer="evopromptde", config=cfg)
 

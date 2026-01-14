@@ -40,6 +40,7 @@ def test_reward_task_passes_reward_columns():
     df = pd.DataFrame({"x": ["a", "b", "c"], "reward": [0.1, 0.2, 0.3]})
 
     seen_rewards: list[float] = []
+
     def reward_fn(prediction: str, reward: float) -> float:
         seen_rewards.append(reward)
         return reward if prediction == "keep" else -1.0

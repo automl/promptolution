@@ -27,7 +27,6 @@ from promptolution.llms.api_llm import APILLM
 from promptolution.llms.local_llm import LocalLLM
 from promptolution.llms.vllm import VLLM
 from promptolution.optimizers.capo import CAPO
-from promptolution.optimizers.capoeira import Capoeira
 from promptolution.optimizers.evoprompt_de import EvoPromptDE
 from promptolution.optimizers.evoprompt_ga import EvoPromptGA
 from promptolution.optimizers.opro import OPRO
@@ -226,14 +225,6 @@ def get_optimizer(
 
     if final_optimizer == "capo":
         return CAPO(
-            predictor=predictor,
-            meta_llm=meta_llm,
-            task=task,
-            config=config,
-        )
-
-    if final_optimizer == "capoeira":
-        return Capoeira(
             predictor=predictor,
             meta_llm=meta_llm,
             task=task,

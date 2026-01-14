@@ -35,11 +35,9 @@ def test_subsample_and_block_controls(small_task):
     task.increment_block_idx()
     assert task.block_idx == 1 % task.n_blocks if task.n_blocks else 0
 
-    task.set_block_idx([0, 1, 2])
-    xs2, _ = task.subsample()
+    xs2, _ = task.subsample(block_idx=[0, 1, 2])
     assert set(xs2) == set(task.xs)
 
-    task.set_block_idx(0)
     popped = task.pop_datapoints(n=1)
     assert len(popped) == 1
     assert len(task.xs) == 2
@@ -121,7 +119,7 @@ def test_evaluate_with_block_list_updates_blocks(predictor, small_task):
     prompts = [Prompt("p1"), Prompt("p2")]
     task.evaluate(prompts, predictor)
     for p in prompts:
-        assert task.prompt_evaluated_blocks[str(p)] == {0, 1}
+        assert task.prompt_evaluated_blocks[p] == [0, 1]
 
 
 def test_task_config_applied():
