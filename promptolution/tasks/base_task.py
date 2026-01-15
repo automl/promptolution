@@ -97,7 +97,9 @@ class BaseTask(ABC):
 
         self.prompt_evaluated_blocks: Dict[Prompt, List[int]] = {}  # prompt_str: set of evaluated block indices
 
-    def subsample(self, eval_strategy: Optional["EvalStrategy"] = None, block_idx: int | list[int] | None = None) -> Tuple[List[str], List[str]]:
+    def subsample(
+        self, eval_strategy: Optional["EvalStrategy"] = None, block_idx: int | list[int] | None = None
+    ) -> Tuple[List[str], List[str]]:
         """Subsample the dataset based on the specified parameters.
 
         Args:
@@ -108,7 +110,7 @@ class BaseTask(ABC):
         """
         if block_idx is not None and isinstance(block_idx, int):
             block_idx = [block_idx]
-        
+
         if block_idx is not None:
             return [self.xs[i] for i in block_idx], [self.ys[i] for i in block_idx]
         if eval_strategy is None:
@@ -380,6 +382,7 @@ class BaseTask(ABC):
 
         self.block_idx = idx
 
-    def get_evaluated_blocks(self, prompts: List[Prompt]) -> Dict[Prompt, List[int]]:
+    def get_evaluated_blocks(self, prompts: Union[Prompt, List[Prompt]]) -> Dict[Prompt, List[int]]:
         """Return mapping of prompt string to evaluated block indices."""
-        return {p: list(self.prompt_evaluated_blocks.get(p, [])) for p in prompts}
+        prompts_list: List[Prompt] = [prompts] if isinstance(prompts, Prompt) else list(prompts)
+        return {p: list(self.prompt_evaluated_blocks.get(p, [])) for p in prompts_list}
