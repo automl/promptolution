@@ -188,6 +188,8 @@ class BaseTask(ABC):
             datapoint_seqs: List[str] = []
             for x, y in zip(xs, ys):
                 cache_key = self._cache_key(prompt, x, str(y))
+                if cache_key not in self.eval_cache:
+                    continue
                 datapoint_score = self.eval_cache[cache_key]
                 datapoint_scores.append(datapoint_score)
                 datapoint_seqs.append(self.seq_cache.get(cache_key, ""))
