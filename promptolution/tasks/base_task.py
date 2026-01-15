@@ -220,6 +220,8 @@ class BaseTask(ABC):
             seq_token_counts: List[float] = []
             for x, y in zip(xs, ys):
                 cache_key = self._cache_key(prompt, x, str(y))
+                if cache_key not in self.seq_cache:
+                    continue
                 seq_text = self.seq_cache[cache_key]
                 seq_token_counts.append(token_counter(seq_text))
 
