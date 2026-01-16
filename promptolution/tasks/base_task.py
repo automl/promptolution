@@ -222,6 +222,9 @@ class BaseTask(ABC):
             for x, y in zip(xs, ys):
                 cache_key = self._cache_key(prompt, x, str(y))
                 if cache_key not in self.seq_cache:
+                    # Use NaN for missing datapoints instead of skipping
+                    seq_token_counts.append(np.nan)
+                    input_token_counts.append(np.nan)
                     continue
                 seq_text = self.seq_cache[cache_key]
                 seq_token_counts.append(token_counter(seq_text))
@@ -236,8 +239,8 @@ class BaseTask(ABC):
         inputs_array = np.vstack(per_prompt_inputs)
         outputs_array = np.vstack(per_prompt_outputs)
 
-        agg_input_tokens = inputs_array.mean(axis=1)
-        agg_output_tokens = outputs_array.mean(axis=1)
+        agg_input_tokens = np.nanmean(inputs_array, axis=1)
+        agg_output_tokens = np.nanmean(outputs_array, axis=1)
 
         return inputs_array, outputs_array, agg_input_tokens, agg_output_tokens
 
