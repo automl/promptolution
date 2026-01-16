@@ -175,7 +175,7 @@ class CAPO(BaseOptimizer):
             self.task.increment_block_idx()
 
         final_result = self.task.evaluate(candidates, self.predictor, eval_strategy="evaluated")
-        avg_scores = final_result.scores.tolist()
+        avg_scores = final_result.agg_scores.tolist()
         prompts, avg_scores = sort_prompts_by_scores(candidates, avg_scores, top_k=k)
 
         return prompts, avg_scores

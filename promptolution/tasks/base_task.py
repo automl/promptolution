@@ -189,10 +189,12 @@ class BaseTask(ABC):
             for x, y in zip(xs, ys):
                 cache_key = self._cache_key(prompt, x, str(y))
                 if cache_key not in self.eval_cache:
-                    continue
-                datapoint_score = self.eval_cache[cache_key]
-                datapoint_scores.append(datapoint_score)
-                datapoint_seqs.append(self.seq_cache.get(cache_key, ""))
+                    datapoint_scores.append(np.nan)  # Fill with NaN instead of skipping
+                    datapoint_seqs.append("")
+                else:
+                    datapoint_score = self.eval_cache[cache_key]
+                    datapoint_scores.append(datapoint_score)
+                    datapoint_seqs.append(self.seq_cache.get(cache_key, ""))
             score_rows.append(datapoint_scores)
             seq_rows.append(datapoint_seqs)
 
