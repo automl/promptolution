@@ -130,13 +130,6 @@ class MultiObjectiveTask(BaseTask):
                 prompts_list, xs, ys, predictor
             )
 
-            # Record evaluated block for block strategies
-            for prompt in prompts_list:
-                block_set = task.prompt_evaluated_blocks.setdefault(prompt, [])
-                if isinstance(task.block_idx, list):
-                    block_set.extend(task.block_idx)
-                else:
-                    block_set.append(task.block_idx)
             per_task_results.append(
                 EvalResult(
                     scores=scores_array,
