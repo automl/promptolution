@@ -111,7 +111,14 @@ class BaseTask(ABC):
         """
 
         if block_idx is not None:
-            return [self.xs[i] for i in block_idx], [self.ys[i] for i in block_idx]
+            indices = []
+            for idx in block_idx:
+                start_idx = idx * self.n_subsamples
+                end_idx = min((idx + 1) * self.n_subsamples, len(self.xs))
+                indices.extend(range(start_idx, end_idx))
+                
+            return [self.xs[i] for i in indices], [self.ys[i] for i in indices]
+            
         if eval_strategy is None:
             eval_strategy = self.eval_strategy
 
@@ -300,16 +307,15 @@ class BaseTask(ABC):
 
         # Record evaluated block for block strategies
         for prompt in prompts_list:
-            if eval_strategy == "evaluated":
-                continue
-            elif block_idx is not None:
+            if block_idx is not None:
                 self.prompt_evaluated_blocks.setdefault(prompt, []).extend(block_idx)
             elif eval_strategy in ["sequential_block", "random_block"]:
                 self.prompt_evaluated_blocks.setdefault(prompt, []).append(self.block_idx)
-            else:
+            elif eval_strategy == "full":
                 self.prompt_evaluated_blocks.setdefault(prompt, []).extend(
                     list(range(self.n_blocks))
                 )
+            
                 
 
         input_tokens, output_tokens, agg_input_tokens, agg_output_tokens = self._compute_costs(
