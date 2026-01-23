@@ -27,6 +27,7 @@ class RewardTask(BaseTask):
         df: pd.DataFrame,
         reward_function: Callable[[str], float],
         x_column: str = "x",
+        y_column: Optional[str] = None,
         reward_columns: Optional[List[str]] = None,
         task_description: Optional[str] = None,
         n_subsamples: int = 30,
@@ -40,6 +41,7 @@ class RewardTask(BaseTask):
             df (pd.DataFrame): Input DataFrame containing the data.
             reward_function (Callable): Function that takes a prediction, potential keyword arguments from the dataframe, and returns a reward score. Note: The optimizers aim to maximize.
             x_column (str, optional): Name of the column containing input texts. Defaults to "x".
+            y_column (str, optional): Name of the column containing target texts if available. Defaults to None.
             reward_columns (List[str], optional): Additional dataframe columns to pass as keyword args to reward_function.
             task_description (str, optional): Description of the task.
             n_subsamples (int, optional): Number of subsamples to use. Defaults to 30.
@@ -52,6 +54,7 @@ class RewardTask(BaseTask):
         super().__init__(
             df=df,
             x_column=x_column,
+            y_column=y_column,
             task_description=task_description,
             n_subsamples=n_subsamples,
             eval_strategy=eval_strategy,
