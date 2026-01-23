@@ -88,7 +88,7 @@ class BaseTask(ABC):
             # If no y_column is provided, create a dummy y array
             self.ys = [""] * len(self.xs)
 
-        self.block_idx: int | list[int] = 0
+        self.block_idx: int = 0
         self.n_blocks: int = len(self.xs) // self.n_subsamples if self.n_subsamples > 0 else 1
         self.rng = np.random.default_rng(seed)
 
@@ -98,21 +98,27 @@ class BaseTask(ABC):
         self.prompt_evaluated_blocks: Dict[Prompt, List[int]] = {}  # prompt_str: set of evaluated block indices
 
     def subsample(
-        self, eval_strategy: Optional["EvalStrategy"] = None, block_idx: int | list[int] | None = None
+        self, eval_strategy: Optional["EvalStrategy"] = None, block_idx: List[int] | None = None
     ) -> Tuple[List[str], List[str]]:
         """Subsample the dataset based on the specified parameters.
 
         Args:
             eval_strategy (EvalStrategy, optional): Subsampling strategy to use instead of self.eval_strategy. Defaults to None.
+            block_idx (List[int] | None, optional): Specific block index or indices to evaluate, overriding eval_strategy. Defaults to None.
 
         Returns:
             Tuple[List[str], List[str]]: Subsampled input data and labels.
         """
-        if block_idx is not None and isinstance(block_idx, int):
-            block_idx = [block_idx]
 
         if block_idx is not None:
-            return [self.xs[i] for i in block_idx], [self.ys[i] for i in block_idx]
+            indices = []
+            for idx in block_idx:
+                start_idx = idx * self.n_subsamples
+                end_idx = min((idx + 1) * self.n_subsamples, len(self.xs))
+                indices.extend(range(start_idx, end_idx))
+                
+            return [self.xs[i] for i in indices], [self.ys[i] for i in indices]
+            
         if eval_strategy is None:
             eval_strategy = self.eval_strategy
 
@@ -128,17 +134,9 @@ class BaseTask(ABC):
             indices = np.arange(start_idx, end_idx)
             return [self.xs[i] for i in indices], [self.ys[i] for i in indices]
         elif eval_strategy == "sequential_block":
-            if isinstance(self.block_idx, list):
-                block_indices: List[int] = []
-                for block_id in self.block_idx:
-                    start_idx = block_id * self.n_subsamples
-                    end_idx = min((block_id + 1) * self.n_subsamples, len(self.xs))
-                    block_indices.extend(range(start_idx, end_idx))
-                indices = np.array(sorted(set(block_indices)), dtype=int)
-            else:
-                start_idx = self.block_idx * self.n_subsamples
-                end_idx = min((self.block_idx + 1) * self.n_subsamples, len(self.xs))
-                indices = np.arange(start_idx, end_idx)
+            start_idx = self.block_idx * self.n_subsamples
+            end_idx = min((self.block_idx + 1) * self.n_subsamples, len(self.xs))
+            indices = np.arange(start_idx, end_idx)
 
             return [self.xs[i] for i in indices], [self.ys[i] for i in indices]
         else:
@@ -268,9 +266,20 @@ class BaseTask(ABC):
 
         This method orchestrates subsampling, prediction, caching, and result collection.
         Sequences, token costs, raw scores, and aggregated scores are always returned.
+        
+        Args:
+            prompts (Union[Prompt, List[Prompt]]): A single prompt or a list of prompts to evaluate. Results will be returned in the same order.
+            predictor (BasePredictor): The predictor to evaluate the prompts with.
+            system_prompts (Optional[Union[str, List[str]]], optional): Optional system prompts to parse to the predictor.
+            eval_strategy (Optional[EvalStrategy], optional): Subsampling strategy to use instead of self.eval_strategy. Defaults to None, which uses self.eval_strategy.
+            block_idx (Optional[int | list[int]], optional): Specific block index or indices to evaluate, overriding eval_strategy. Defaults to None.
         """
         prompts_list: List[Prompt] = [prompts] if isinstance(prompts, Prompt) else list(prompts)
         eval_strategy = eval_strategy or self.eval_strategy
+        
+        if block_idx is not None and isinstance(block_idx, int):
+            block_idx = [block_idx]
+        
         xs, ys = self.subsample(eval_strategy=eval_strategy, block_idx=block_idx)
         (
             prompts_to_evaluate,
@@ -298,10 +307,16 @@ class BaseTask(ABC):
 
         # Record evaluated block for block strategies
         for prompt in prompts_list:
-            if isinstance(self.block_idx, list):
-                self.prompt_evaluated_blocks.setdefault(prompt, []).extend(self.block_idx)
-            else:
+            if block_idx is not None:
+                self.prompt_evaluated_blocks.setdefault(prompt, []).extend(block_idx)
+            elif eval_strategy in ["sequential_block", "random_block"]:
                 self.prompt_evaluated_blocks.setdefault(prompt, []).append(self.block_idx)
+            elif eval_strategy == "full":
+                self.prompt_evaluated_blocks.setdefault(prompt, []).extend(
+                    list(range(self.n_blocks))
+                )
+            
+                
 
         input_tokens, output_tokens, agg_input_tokens, agg_output_tokens = self._compute_costs(
             prompts_list, xs, ys, predictor
