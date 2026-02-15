@@ -1,3 +1,5 @@
+import numpy as np
+
 from promptolution.tasks.base_task import BaseTask
 from promptolution.tasks.classification_tasks import ClassificationTask
 from promptolution.utils.prompt_creation import create_prompt_variation, create_prompts_from_samples
@@ -143,3 +145,20 @@ def test_create_prompts_from_samples_multiple_prompts(mock_df, mock_meta_llm):
     assert len(generated_prompts) == n_prompts
 
     assert len(mock_meta_llm.call_history) == 1
+
+
+def test_create_prompts_from_samples_uniform_labels(mock_df, mock_meta_llm):
+    """Ensure uniform-label sampling includes every class in the meta-prompt examples."""
+    task = ClassificationTask(df=mock_df, x_column="x", y_column="y")
+    task.xs = np.asarray(task.xs)
+    task.ys = np.asarray(task.ys)
+
+    mock_meta_llm.reset()
+
+    prompts = create_prompts_from_samples(task, mock_meta_llm, n_samples=2, n_prompts=1, get_uniform_labels=True)
+
+    assert len(prompts) == 1
+    # The constructed meta-prompt should include at least one example per label
+    sent_prompt = mock_meta_llm.call_history[0]["prompts"][0]
+    for label in ["positive", "negative", "neutral"]:
+        assert f"Output: {label}" in sent_prompt

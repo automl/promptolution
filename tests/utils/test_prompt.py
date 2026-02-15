@@ -1,3 +1,5 @@
+import numpy as np
+
 from promptolution.utils.prompt import Prompt, sort_prompts_by_scores
 
 
@@ -39,3 +41,14 @@ def test_sort_prompts_by_scores():
     # Verify sorting
     assert sorted_prompts == [prompt2, prompt1, prompt3]
     assert sorted_scores == [0.90, 0.75, 0.60]
+
+
+def test_sort_prompts_by_scores_with_array():
+    """Ensure sorting works when scores are numpy arrays (aggregated via mean)."""
+    prompts = [Prompt("p1"), Prompt("p2"), Prompt("p3")]
+    scores = np.array([[0.5, 0.7], [0.8, 0.9], [0.4, 0.6]])
+
+    sorted_prompts, sorted_scores = sort_prompts_by_scores(prompts, scores)
+
+    assert sorted_prompts == [prompts[1], prompts[0], prompts[2]]
+    np.testing.assert_allclose(sorted_scores, [0.85, 0.6, 0.5])

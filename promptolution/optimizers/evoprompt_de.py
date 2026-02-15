@@ -60,7 +60,8 @@ class EvoPromptDE(BaseOptimizer):
         self.prompt_template = self._initialize_meta_template(prompt_template or EVOPROMPT_DE_TEMPLATE_TD)
 
     def _pre_optimization_loop(self) -> None:
-        self.scores = self.task.evaluate(self.prompts, self.predictor, return_agg_scores=True)
+        result = self.task.evaluate(self.prompts, self.predictor)
+        self.scores = result.agg_scores.tolist()
         self.prompts, self.scores = sort_prompts_by_scores(self.prompts, self.scores)
 
     def _step(self) -> List[Prompt]:
@@ -99,7 +100,8 @@ class EvoPromptDE(BaseOptimizer):
         child_instructions = extract_from_tag(child_instructions, "<prompt>", "</prompt>")
         child_prompts = [Prompt(p) for p in child_instructions]
 
-        child_scores = self.task.evaluate(child_prompts, self.predictor, return_agg_scores=True)
+        child_result = self.task.evaluate(child_prompts, self.predictor)
+        child_scores = child_result.agg_scores.tolist()
 
         for i in range(len(self.prompts)):
             if child_scores[i] > self.scores[i]:

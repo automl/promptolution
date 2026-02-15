@@ -53,10 +53,10 @@ class RandomSelector(BaseExemplarSelector):
         """
         examples: List[str] = []
         while len(examples) < n_examples:
-            scores, seqs = self.task.evaluate(
-                prompt, self.predictor, eval_strategy="subsample", return_seq=True, return_agg_scores=False
-            )
-            score = np.mean(scores)
+            result = self.task.evaluate(prompt, self.predictor, eval_strategy="subsample")
+            scores = result.scores
+            seqs = result.sequences
+            score = float(np.mean(scores))
             seq = seqs[0][0]
             if score == self.desired_score:
                 examples.append(seq)

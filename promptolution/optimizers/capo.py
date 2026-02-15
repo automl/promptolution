@@ -16,10 +16,10 @@ if TYPE_CHECKING:  # pragma: no cover
     from promptolution.utils.test_statistics import TestStatistics
 
 from promptolution.optimizers.base_optimizer import BaseOptimizer
-from promptolution.utils.formatting import extract_from_tag
+from promptolution.utils.capo_utils import build_few_shot_examples, perform_crossover, perform_mutation
 from promptolution.utils.logging import get_logger
 from promptolution.utils.prompt import Prompt, sort_prompts_by_scores
-from promptolution.utils.templates import CAPO_CROSSOVER_TEMPLATE, CAPO_FEWSHOT_TEMPLATE, CAPO_MUTATION_TEMPLATE
+from promptolution.utils.templates import CAPO_CROSSOVER_TEMPLATE, CAPO_MUTATION_TEMPLATE
 from promptolution.utils.test_statistics import get_test_statistic_func
 from promptolution.utils.token_counter import get_token_counter
 
@@ -29,7 +29,7 @@ logger = get_logger(__name__)
 class CAPO(BaseOptimizer):
     """CAPO: Cost-Aware Prompt Optimization.
 
-    This class implements an evolutionary algorithm for optimizing prompts in large language models
+    This class implements an evolutionary algorithm for optimizing prompts in LLMs
     by incorporating racing techniques and multi-objective optimization. It uses crossover, mutation,
     and racing based on evaluation scores and statistical tests to improve efficiency while balancing
     performance with prompt length. It is adapted from the paper "CAPO: Cost-Aware Prompt Optimization" by Zehle et al., 2025.
@@ -55,7 +55,7 @@ class CAPO(BaseOptimizer):
         callbacks: Optional[List["BaseCallback"]] = None,
         config: Optional["ExperimentConfig"] = None,
     ) -> None:
-        """Initializes the CAPOptimizer with various parameters for prompt evolution.
+        """Initialize the CAPOptimizer with various parameters for prompt evolution.
 
         Args:
             predictor (BasePredictor): The predictor for evaluating prompt performance.
@@ -114,134 +114,25 @@ class CAPO(BaseOptimizer):
         self.population_size = len(self.prompts)
 
         if hasattr(self.predictor, "begin_marker") and hasattr(self.predictor, "end_marker"):
-            self.target_begin_marker = self.predictor.begin_marker
-            self.target_end_marker = self.predictor.end_marker
+            self.target_begin_marker = self.predictor.begin_marker  # type: ignore
+            self.target_end_marker = self.predictor.end_marker  # type: ignore
         else:
             self.target_begin_marker = ""
             self.target_end_marker = ""
 
     def _initialize_population(self, initial_prompts: List[Prompt]) -> List[Prompt]:
-        """Initializes the population of Prompt objects from initial instructions.
-
-        Args:
-            initial_prompts (List[str]): List of initial prompt instructions.
-
-        Returns:
-            List[Prompt]: Initialized population of prompts with few-shot examples.
-        """
+        """Initialize the population of Prompt objects from initial instructions."""
         population = []
         for prompt in initial_prompts:
             num_examples = random.randint(0, self.upper_shots)
-            few_shots = self._create_few_shot_examples(prompt.instruction, num_examples)
+            few_shots = build_few_shot_examples(
+                instruction=prompt.instruction,
+                num_examples=num_examples,
+                optimizer=self,
+            )
             population.append(Prompt(prompt.instruction, few_shots))
 
         return population
-
-    def _create_few_shot_examples(self, instruction: str, num_examples: int) -> List[str]:
-        if num_examples == 0:
-            return []
-
-        few_shot_samples = self.df_few_shots.sample(num_examples, replace=False)
-        sample_inputs = few_shot_samples[self.task.x_column].values.astype(str)
-        sample_targets = few_shot_samples[self.task.y_column].values
-        few_shots = [
-            CAPO_FEWSHOT_TEMPLATE.replace("<input>", i).replace(
-                "<output>", f"{self.target_begin_marker}{t}{self.target_end_marker}"
-            )
-            for i, t in zip(sample_inputs, sample_targets)
-        ]
-
-        if not self.create_fs_reasoning:
-            # If we do not create reasoning, return the few-shot examples directly
-            return few_shots
-
-        preds, seqs = self.predictor.predict(
-            [instruction] * num_examples,
-            list(sample_inputs),
-            return_seq=True,
-        )
-        if isinstance(seqs, str):
-            seqs = [seqs]
-        if isinstance(preds, str):
-            preds = [preds]
-
-        # Check which predictions are correct and get a single one per example
-        for j in range(num_examples):
-            # Process and clean up the generated sequences
-            seqs[j] = seqs[j].replace(sample_inputs[j], "", 1).strip()
-            # Check if the prediction is correct and add reasoning if so
-            if preds[j] == sample_targets[j] or not self.check_fs_accuracy:
-                few_shots[j] = CAPO_FEWSHOT_TEMPLATE.replace("<input>", sample_inputs[j]).replace("<output>", seqs[j])
-
-        return few_shots
-
-    def _crossover(self, parents: List[Prompt]) -> List[Prompt]:
-        """Performs crossover among parent prompts to generate offsprings.
-
-        Args:
-            parents (List[Prompt]): List of parent prompts.
-
-        Returns:
-            List[Prompt]: List of new offsprings after crossover.
-        """
-        crossover_prompts = []
-        offspring_few_shots = []
-        for _ in range(self.crossovers_per_iter):
-            mother, father = random.sample(parents, 2)
-            crossover_prompt = (
-                self.crossover_template.replace("<mother>", mother.instruction)
-                .replace("<father>", father.instruction)
-                .strip()
-            )
-            # collect all crossover prompts then pass them bundled to the meta llm (speedup)
-            crossover_prompts.append(crossover_prompt)
-            combined_few_shots = mother.few_shots + father.few_shots
-            num_few_shots = (len(mother.few_shots) + len(father.few_shots)) // 2
-            offspring_few_shot = random.sample(combined_few_shots, num_few_shots) if combined_few_shots else []
-            offspring_few_shots.append(offspring_few_shot)
-
-        child_instructions = self.meta_llm.get_response(crossover_prompts)
-
-        offsprings = []
-        for instruction, examples in zip(child_instructions, offspring_few_shots):
-            instruction = extract_from_tag(instruction, "<prompt>", "</prompt>")
-            offsprings.append(Prompt(instruction, examples))
-
-        return offsprings
-
-    def _mutate(self, offsprings: List[Prompt]) -> List[Prompt]:
-        """Apply mutation to offsprings to generate new candidate prompts.
-
-        Args:
-            offsprings (List[Prompt]): List of offsprings to mutate.
-
-        Returns:
-            List[Prompt]: List of mutated prompts.
-        """
-        # collect all mutation prompts then pass them bundled to the meta llm (speedup)
-        mutation_prompts = [
-            self.mutation_template.replace("<instruction>", prompt.instruction) for prompt in offsprings
-        ]
-        new_instructions = self.meta_llm.get_response(mutation_prompts)
-
-        mutated = []
-        for new_instruction, prompt in zip(new_instructions, offsprings):
-            new_instruction = extract_from_tag(new_instruction, "<prompt>", "</prompt>")
-            p = random.random()
-
-            new_few_shots: List[str]
-            if p < 1 / 3 and len(prompt.few_shots) < self.upper_shots:  # add a random few shot
-                new_few_shot = self._create_few_shot_examples(new_instruction, 1)
-                new_few_shots = prompt.few_shots + new_few_shot
-            elif 1 / 3 <= p < 2 / 3 and len(prompt.few_shots) > 0:  # remove a random few shot
-                new_few_shots = random.sample(prompt.few_shots, len(prompt.few_shots) - 1)
-            else:  # do not change few shots, but shuffle
-                new_few_shots = prompt.few_shots
-
-            random.shuffle(new_few_shots)
-            mutated.append(Prompt(new_instruction, new_few_shots))
-
-        return mutated
 
     def _do_racing(self, candidates: List[Prompt], k: int) -> Tuple[List[Prompt], List[float]]:
         """Perform the racing (selection) phase by comparing candidates based on their evaluation scores using the provided test statistic.
@@ -254,21 +145,20 @@ class CAPO(BaseOptimizer):
             List[Prompt]: List of surviving prompts after racing.
         """
         self.task.reset_block_idx()
-        block_scores: List[List[float]] = []
+        block_scores: List[np.ndarray] = []
         i = 0
         while len(candidates) > k and i < self.max_n_blocks_eval:
             # new_scores shape: (n_candidates, n_samples)
-            new_scores: List[float] = self.task.evaluate(candidates, self.predictor, return_agg_scores=False)
+            results = self.task.evaluate(candidates, self.predictor)
+            new_scores = results.scores
 
             # subtract length penalty
             prompt_lengths = np.array([self.token_counter(c.construct_prompt()) for c in candidates])
             rel_prompt_lengths = prompt_lengths / self.max_prompt_length
 
-            penalized_new_scores = np.array(new_scores) - self.length_penalty * rel_prompt_lengths[:, None]
+            penalized_new_scores = new_scores - self.length_penalty * rel_prompt_lengths[:, None]
 
-            new_scores = penalized_new_scores.tolist()
-
-            block_scores.append(new_scores)
+            block_scores.append(penalized_new_scores)
             scores = np.concatenate(block_scores, axis=1)
 
             # boolean matrix C_ij indicating if candidate j is better than candidate i
@@ -279,12 +169,13 @@ class CAPO(BaseOptimizer):
             # Sum along rows to get number of better scores for each candidate
             n_better = np.sum(comparison_matrix, axis=1)
 
-            candidates, block_scores = filter_survivors(candidates, block_scores, mask=n_better < k)
+            candidates, block_scores = self.filter_survivors(candidates, block_scores, mask=n_better < k)
 
             i += 1
             self.task.increment_block_idx()
 
-        avg_scores = self.task.evaluate(candidates, self.predictor, eval_strategy="evaluated")
+        final_result = self.task.evaluate(candidates, self.predictor, eval_strategy="evaluated")
+        avg_scores = final_result.agg_scores.tolist()
         prompts, avg_scores = sort_prompts_by_scores(candidates, avg_scores, top_k=k)
 
         return prompts, avg_scores
@@ -297,39 +188,35 @@ class CAPO(BaseOptimizer):
         self.task.reset_block_idx()
 
     def _step(self) -> List[Prompt]:
-        """Perform a single optimization step.
-
-        Returns:
-            List[Prompt]: The optimized list of prompts after the step.
-        """
-        offsprings = self._crossover(self.prompts)
-        mutated = self._mutate(offsprings)
+        """Perform a single optimization step."""
+        offsprings = perform_crossover(self.prompts, optimizer=self)
+        mutated = perform_mutation(offsprings=offsprings, optimizer=self)
         combined = self.prompts + mutated
 
         self.prompts, self.scores = self._do_racing(combined, self.population_size)
 
         return self.prompts
 
+    @staticmethod
+    def filter_survivors(
+        candidates: List[Prompt], scores: List[np.ndarray], mask: Any
+    ) -> Tuple[List[Prompt], List[np.ndarray]]:
+        """Filter candidates and scores based on a boolean mask.
 
-def filter_survivors(
-    candidates: List[Prompt], scores: List[List[float]], mask: Any
-) -> Tuple[List[Prompt], List[List[float]]]:
-    """Filter candidates and scores based on a boolean mask.
+        Args:
+            candidates (List[Prompt]): List of candidate prompts.
+            scores (List[List[float]]): Corresponding scores for the candidates.
+            mask (Any): Boolean mask indicating which candidates to keep.
 
-    Args:
-        candidates (List[Prompt]): List of candidate prompts.
-        scores (List[List[float]]): Corresponding scores for the candidates.
-        mask (Any): Boolean mask indicating which candidates to keep.
+        Returns:
+            Tuple[List[Prompt], List[List[float]]]: Filtered candidates and their scores.
+        """
+        assert len(candidates) == len(mask), "Length of candidates, and mask must be the same."
+        assert all(
+            len(candidates) == len(score) for score in scores
+        ), "Each score list must have the same length as candidates."
 
-    Returns:
-        Tuple[List[Prompt], List[List[float]]]: Filtered candidates and their scores.
-    """
-    assert len(candidates) == len(mask), "Length of candidates, and mask must be the same."
-    assert all(
-        len(candidates) == len(score) for score in scores
-    ), "Each score list must have the same length as candidates."
+        filtered_candidates = [c for c, m in zip(candidates, mask) if m]
+        filtered_scores = [np.asarray(score)[mask] for score in scores]
 
-    filtered_candidates = [c for c, m in zip(candidates, mask) if m]
-    filtered_scores = [[s for s, m in zip(score, mask) if m] for score in scores]
-
-    return filtered_candidates, filtered_scores
+        return filtered_candidates, filtered_scores

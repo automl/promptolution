@@ -13,8 +13,9 @@ from promptolution.utils.logging import get_logger
 logger = get_logger(__name__)
 
 try:
-    from transformers import AutoTokenizer  # type: ignore
-    from vllm import LLM, SamplingParams
+    from transformers import AutoTokenizer  # noqa: F401 (import required for testing)
+    from vllm import LLM
+    from vllm.sampling_params import SamplingParams
 
     imports_successful = True
 except ImportError:
@@ -113,23 +114,23 @@ class VLLM(BaseLLM):
 
         self.llm = LLM(**llm_params)
 
-        # Initialize tokenizer separately for potential pre-processing
-        self.tokenizer = AutoTokenizer.from_pretrained(model_id)
+        self.tokenizer = self.llm.get_tokenizer()
 
         if batch_size is None:
-            cache_config = self.llm.llm_engine.model_executor.cache_config
-            if (
-                cache_config.num_gpu_blocks is not None
-                and cache_config.block_size is not None
-                and self.max_model_len is not None
-            ):
-                self.batch_size = int(
-                    (cache_config.num_gpu_blocks * cache_config.block_size / self.max_model_len) * 0.95
-                )
-                logger.info(f"🚀 Batch size set to {self.batch_size} based on GPU memory.")
+            max_num_seqs = int(llm_kwargs.get("max_num_seqs", 1))
+            max_num_batched_tokens = llm_kwargs.get("max_num_batched_tokens", None)
+
+            # Heuristic: if vLLM is capped by batched tokens, don't feed more seqs than fit.
+            if max_num_batched_tokens is not None and self.max_model_len is not None:
+                token_limited = max(1, int(max_num_batched_tokens) // int(self.max_model_len))
+                self.batch_size = max(1, min(max_num_seqs, token_limited))
             else:
-                self.batch_size = 1
-                logger.warning("⚠️ Could not determine batch size from GPU memory. Using batch size of 1.")
+                self.batch_size = max(1, max_num_seqs)
+
+            logger.info(
+                f"🚀 Batch size set to {self.batch_size} (max_num_seqs={max_num_seqs}, "
+                f"max_num_batched_tokens={max_num_batched_tokens}, max_model_len={self.max_model_len})."
+            )
         else:
             self.batch_size = batch_size
 

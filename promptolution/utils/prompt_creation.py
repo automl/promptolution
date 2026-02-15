@@ -13,7 +13,6 @@ if TYPE_CHECKING:  # pragma: no cover
     from promptolution.llms.base_llm import BaseLLM
     from promptolution.tasks.base_task import BaseTask
 
-from promptolution.tasks.classification_tasks import ClassificationTask
 from promptolution.utils.templates import (
     PROMPT_CREATION_TEMPLATE,
     PROMPT_CREATION_TEMPLATE_FROM_TASK_DESCRIPTION,
@@ -95,7 +94,7 @@ def create_prompts_from_samples(
 
     meta_prompts = []
     for _ in range(n_prompts):
-        if isinstance(task, ClassificationTask) and get_uniform_labels:
+        if task.task_type == "classification" and get_uniform_labels:
             # if classification task sample such that all classes are represented
             unique_labels, counts = np.unique(task.ys, return_counts=True)
             proportions = counts / len(task.ys)
