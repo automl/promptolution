@@ -29,7 +29,7 @@ logger = get_logger(__name__)
 class CAPO(BaseOptimizer):
     """CAPO: Cost-Aware Prompt Optimization.
 
-    This class implements an evolutionary algorithm for optimizing prompts in large language models
+    This class implements an evolutionary algorithm for optimizing prompts in LLMs
     by incorporating racing techniques and multi-objective optimization. It uses crossover, mutation,
     and racing based on evaluation scores and statistical tests to improve efficiency while balancing
     performance with prompt length. It is adapted from the paper "CAPO: Cost-Aware Prompt Optimization" by Zehle et al., 2025.
