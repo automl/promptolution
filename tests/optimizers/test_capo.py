@@ -197,6 +197,9 @@ def test_capo_crossover_prompt(mock_meta_llm, mock_predictor, initial_prompts, m
         crossovers_per_iter=1,  # Only perform one crossover so we can test the exact prompt
     )
 
+    import random
+
+    random.seed(42)
     mother = Prompt("Classify the sentiment of the text.", ["Input: I love this! Output: Positive"])
     father = Prompt("Determine if the review is positive or negative.", ["Input: This is terrible. Output: Negative"])
     optimizer._crossover([mother, father])
