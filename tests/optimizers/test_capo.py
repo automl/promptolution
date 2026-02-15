@@ -2,8 +2,6 @@ from unittest.mock import MagicMock, patch
 
 import pandas as pd
 
-from tests.mocks.mock_task import MockTask
-
 from promptolution.optimizers.capo import CAPO
 from promptolution.utils.capo_utils import build_few_shot_examples, perform_crossover, perform_mutation
 from promptolution.utils.prompt import Prompt

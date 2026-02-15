@@ -109,16 +109,15 @@ class BaseTask(ABC):
         Returns:
             Tuple[List[str], List[str]]: Subsampled input data and labels.
         """
-
         if block_idx is not None:
-            indices = []
+            indices: List[int] = []
             for idx in block_idx:
                 start_idx = idx * self.n_subsamples
                 end_idx = min((idx + 1) * self.n_subsamples, len(self.xs))
                 indices.extend(range(start_idx, end_idx))
-                
+
             return [self.xs[i] for i in indices], [self.ys[i] for i in indices]
-            
+
         if eval_strategy is None:
             eval_strategy = self.eval_strategy
 
@@ -266,7 +265,7 @@ class BaseTask(ABC):
 
         This method orchestrates subsampling, prediction, caching, and result collection.
         Sequences, token costs, raw scores, and aggregated scores are always returned.
-        
+
         Args:
             prompts (Union[Prompt, List[Prompt]]): A single prompt or a list of prompts to evaluate. Results will be returned in the same order.
             predictor (BasePredictor): The predictor to evaluate the prompts with.
@@ -276,10 +275,10 @@ class BaseTask(ABC):
         """
         prompts_list: List[Prompt] = [prompts] if isinstance(prompts, Prompt) else list(prompts)
         eval_strategy = eval_strategy or self.eval_strategy
-        
+
         if block_idx is not None and isinstance(block_idx, int):
             block_idx = [block_idx]
-        
+
         xs, ys = self.subsample(eval_strategy=eval_strategy, block_idx=block_idx)
         (
             prompts_to_evaluate,
@@ -312,11 +311,7 @@ class BaseTask(ABC):
             elif eval_strategy in ["sequential_block", "random_block"]:
                 self.prompt_evaluated_blocks.setdefault(prompt, []).append(self.block_idx)
             elif eval_strategy == "full":
-                self.prompt_evaluated_blocks.setdefault(prompt, []).extend(
-                    list(range(self.n_blocks))
-                )
-            
-                
+                self.prompt_evaluated_blocks.setdefault(prompt, []).extend(list(range(self.n_blocks)))
 
         input_tokens, output_tokens, agg_input_tokens, agg_output_tokens = self._compute_costs(
             prompts_list, xs, ys, predictor
