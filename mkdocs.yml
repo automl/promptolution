@@ -47,6 +47,7 @@ nav:
   - Home: index.md
   - Release Notes:
     - Overview: release-notes.md
+    - v2.2.1: release-notes/v2.2.1.md
     - v2.2.0: release-notes/v2.2.0.md
     - v2.1.0: release-notes/v2.1.0.md
     - v2.0.1: release-notes/v2.0.1.md
@@ -74,7 +75,7 @@ nav:
     - Exemplar Selectors: api/exemplar_selectors.md
   - Tutorials:
     - Getting Started: examples/getting_started.md
-    - LLM as Judge Tutorial: examples/llm_as_judge_tutorial.md
+    - LLM-as-a-Judge Tutorial: examples/llm_as_judge_tutorial.md
     - Reward Task Tutorial: examples/reward_task_tutorial.md
 
 markdown_extensions:

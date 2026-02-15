@@ -60,7 +60,7 @@ Return your answer encompased by <final_score></final_score>"""
 
 
 class JudgeTask(BaseTask):
-    """Task that evaluates a predictor using an LLM as a judge, optionally accepting a ground truth."""
+    """Task that evaluates a predictor using an LLM-as-a-judge, optionally accepting a ground truth."""
 
     def __init__(
         self,
