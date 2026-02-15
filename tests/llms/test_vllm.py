@@ -42,6 +42,9 @@ def mock_vllm_dependencies():
         # This is the most critical change.
         mock_from_pretrained.return_value = mock_tokenizer_instance
 
+        # 4. Make sure llm_instance.get_tokenizer() returns the mock tokenizer
+        mock_llm_instance.get_tokenizer.return_value = mock_tokenizer_instance
+
         # --- Sampling Params Mock Setup ---
         mock_sampling_params_instance = MagicMock()
         mock_sampling_params.return_value = mock_sampling_params_instance
@@ -87,13 +90,22 @@ def test_vllm_with_auto_batch_size(mock_vllm_dependencies):
     mock_vllm_dependencies["llm_instance"].llm_engine.model_executor.cache_config.block_size = 16
 
     # Create VLLM instance with batch_size=None to trigger auto calculation
-    vllm_instance = VLLM(model_id="mock-model", batch_size=None, max_model_len=2048)
+    # With max_num_batched_tokens=16384 and max_model_len=2048:
+    # token_limited = 16384 // 2048 = 8
+    # batch_size = min(max_num_seqs=10, token_limited=8) = 8
+    vllm_instance = VLLM(
+        model_id="mock-model",
+        batch_size=None,
+        max_model_len=2048,
+        llm_kwargs={"max_num_seqs": 10, "max_num_batched_tokens": 16384},
+    )
 
     # Verify batch_size is greater than zero
     assert vllm_instance.batch_size > 0, "Batch size should be greater than zero"
-    # With num_gpu_blocks=1000, block_size=16, max_model_len=2048
-    # batch_size = int((1000 * 16 / 2048) * 0.95) = int(7.8125 * 0.95) = int(7.42) = 7
-    assert vllm_instance.batch_size == 7, f"Expected batch_size=7, got {vllm_instance.batch_size}"
+    # With max_num_batched_tokens=16384, max_model_len=2048, max_num_seqs=10
+    # token_limited = 16384 // 2048 = 8
+    # batch_size = min(10, 8) = 8
+    assert vllm_instance.batch_size == 8, f"Expected batch_size=8, got {vllm_instance.batch_size}"
 
     # Test with a single prompt
     prompts = ["Test prompt"]

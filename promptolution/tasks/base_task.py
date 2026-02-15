@@ -133,11 +133,19 @@ class BaseTask(ABC):
             indices = np.arange(start_idx, end_idx)
             return [self.xs[i] for i in indices], [self.ys[i] for i in indices]
         elif eval_strategy == "sequential_block":
-            start_idx = self.block_idx * self.n_subsamples
-            end_idx = min((self.block_idx + 1) * self.n_subsamples, len(self.xs))
-            indices = np.arange(start_idx, end_idx)
-
-            return [self.xs[i] for i in indices], [self.ys[i] for i in indices]
+            # Handle case where self.block_idx is a list
+            if isinstance(self.block_idx, list):
+                indices_list: List[int] = []
+                for idx in self.block_idx:
+                    start_idx = idx * self.n_subsamples
+                    end_idx = min((idx + 1) * self.n_subsamples, len(self.xs))
+                    indices_list.extend(range(start_idx, end_idx))
+                return [self.xs[i] for i in indices_list], [self.ys[i] for i in indices_list]
+            else:
+                start_idx = self.block_idx * self.n_subsamples
+                end_idx = min((self.block_idx + 1) * self.n_subsamples, len(self.xs))
+                indices = np.arange(start_idx, end_idx)
+                return [self.xs[i] for i in indices], [self.ys[i] for i in indices]
         else:
             raise ValueError(f"Unknown subsampling strategy: '{eval_strategy}'")
 
@@ -309,7 +317,11 @@ class BaseTask(ABC):
             if block_idx is not None:
                 self.prompt_evaluated_blocks.setdefault(prompt, []).extend(block_idx)
             elif eval_strategy in ["sequential_block", "random_block"]:
-                self.prompt_evaluated_blocks.setdefault(prompt, []).append(self.block_idx)
+                # Handle case where self.block_idx is a list
+                if isinstance(self.block_idx, list):
+                    self.prompt_evaluated_blocks.setdefault(prompt, []).extend(self.block_idx)
+                else:
+                    self.prompt_evaluated_blocks.setdefault(prompt, []).append(self.block_idx)
             elif eval_strategy == "full":
                 self.prompt_evaluated_blocks.setdefault(prompt, []).extend(list(range(self.n_blocks)))
 

@@ -145,10 +145,19 @@ class MultiObjectiveTask(BaseTask):
         stacked_scores = [r.scores for r in per_task_results]
         stacked_agg_scores = [r.agg_scores for r in per_task_results]
 
-        # Mirror evaluated block bookkeeping using the first task for parity with BaseTask.
-        first_task = self.tasks[0]
+        # Record evaluated blocks for this evaluation (mirroring BaseTask behavior)
+        for prompt in prompts_list:
+            # Use self.block_idx (the MultiObjectiveTask's block_idx) if in a block strategy
+            if strategy in ["sequential_block", "random_block"]:
+                if isinstance(self.block_idx, list):
+                    self.prompt_evaluated_blocks.setdefault(prompt, []).extend(self.block_idx)
+                else:
+                    self.prompt_evaluated_blocks.setdefault(prompt, []).append(self.block_idx)
+            elif strategy == "full":
+                self.prompt_evaluated_blocks.setdefault(prompt, []).extend(list(range(self.n_blocks)))
+
+        # Use first task's result for sequences and token counts (they're all the same across tasks)
         first_result = per_task_results[0]
-        self.prompt_evaluated_blocks = {p: first_task.prompt_evaluated_blocks[p] for p in prompts_list}
 
         if self._scalarized_objective:
             return EvalResult(
