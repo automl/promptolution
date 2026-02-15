@@ -13,6 +13,7 @@ from promptolution.utils.logging import get_logger
 logger = get_logger(__name__)
 
 try:
+    from transformers import AutoTokenizer  # noqa: F401 (import required for testing)
     from vllm import LLM
     from vllm.sampling_params import SamplingParams
 
