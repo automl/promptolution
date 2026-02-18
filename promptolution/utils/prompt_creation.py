@@ -13,7 +13,6 @@ if TYPE_CHECKING:  # pragma: no cover
     from promptolution.llms.base_llm import BaseLLM
     from promptolution.tasks.base_task import BaseTask
 
-from promptolution.tasks.classification_tasks import ClassificationTask
 from promptolution.utils.templates import (
     PROMPT_CREATION_TEMPLATE,
     PROMPT_CREATION_TEMPLATE_FROM_TASK_DESCRIPTION,
@@ -81,6 +80,8 @@ def create_prompts_from_samples(
     Returns:
         List[str]: A list of generated prompts.
     """
+    from promptolution.tasks.classification_tasks import ClassificationTask
+
     meta_prompt_template: str
     if meta_prompt is None:
         if task_description is None:
