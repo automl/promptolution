@@ -104,7 +104,7 @@ def mock_classification_task_with_subsampling(mock_df):
 
 @pytest.fixture
 def simple_reward_function():
-    """A simple reward function for testing RewardTask."""
+    """Define a simple reward function for testing RewardTask."""
 
     def reward_func(prediction: str) -> float:
         if "great" in prediction.lower() or "perfect" in prediction.lower():

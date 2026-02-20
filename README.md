@@ -1,5 +1,5 @@
 
-![Coverage](https://img.shields.io/badge/Coverage-91%25-brightgreen)
+![Coverage](https://img.shields.io/badge/Coverage-95%25-brightgreen)
 [![CI](https://github.com/automl/promptolution/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/automl/promptolution/actions/workflows/ci.yml)
 [![Docs](https://github.com/automl/promptolution/actions/workflows/docs.yml/badge.svg?branch=main)](https://github.com/automl/promptolution/actions/workflows/docs.yml)
 ![Code Style](https://img.shields.io/badge/Code%20Style-black-black)
@@ -92,7 +92,7 @@ We encourage every contributor to also write tests, that automatically check if 
 
 ```
 poetry run python -m coverage run -m pytest
-poetry run python -m coverage report
+poetry run python -m coverage report -i
 ```
 
 Developed by **Timo Heiß**, **Moritz Schlager**, and **Tom Zehle** (LMU Munich, MCML, ELLIS, TUM, Uni Freiburg).

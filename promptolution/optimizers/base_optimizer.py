@@ -31,6 +31,8 @@ class BaseOptimizer(ABC):
         predictor: The predictor used for prompt evaluation (if applicable).
     """
 
+    supports_multi_objective: bool = False
+
     def __init__(
         self,
         predictor: "BasePredictor",
@@ -50,6 +52,12 @@ class BaseOptimizer(ABC):
         """
         # Set up optimizer state
         self.prompts: List[Prompt] = [Prompt(p) for p in initial_prompts] if initial_prompts else []
+        if task.task_type == "multi" and not self.supports_multi_objective:
+            logger.warning(
+                f"{self.__class__.__name__} does not support multi-objective tasks, objectives will be averaged equally.",
+            )
+            task.activate_scalarized_objective()
+
         self.task = task
         self.callbacks: List["BaseCallback"] = callbacks or []
         self.predictor = predictor

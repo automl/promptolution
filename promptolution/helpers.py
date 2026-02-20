@@ -13,10 +13,11 @@ if TYPE_CHECKING:  # pragma: no cover
     from promptolution.optimizers.base_optimizer import BaseOptimizer
     from promptolution.predictors.base_predictor import BasePredictor
     from promptolution.tasks.base_task import BaseTask
-    from promptolution.utils.config import ExperimentConfig
     from promptolution.tasks.base_task import TaskType
     from promptolution.optimizers.base_optimizer import OptimizerType
     from promptolution.predictors.base_predictor import PredictorType
+    from promptolution.utils import ExperimentConfig
+
 
 import pandas as pd
 
@@ -80,10 +81,6 @@ def run_optimization(df: pd.DataFrame, config: "ExperimentConfig") -> List[Promp
     elif len(config.prompts) > 0 and isinstance(config.prompts[0], str):
         config.prompts = [Prompt(p) for p in cast(List[str], config.prompts)]
 
-    if config.optimizer == "capo" and (config.eval_strategy is None or "block" not in config.eval_strategy):
-        logger.warning("📌 CAPO requires block evaluation strategy. Setting it to 'sequential_block'.")
-        config.eval_strategy = "sequential_block"
-
     task = get_task(df, config, judge_llm=llm)
     optimizer = get_optimizer(
         predictor=predictor,
@@ -118,8 +115,14 @@ def run_evaluation(df: pd.DataFrame, config: "ExperimentConfig", prompts: List[P
     task = get_task(df, config, judge_llm=llm)
     predictor = get_predictor(llm, config=config)
     logger.warning("📊 Starting evaluation...")
-    str_prompts = [p.construct_prompt() for p in prompts]
-    scores = task.evaluate(prompts, predictor, eval_strategy="full")
+    if isinstance(prompts[0], str):
+        str_prompts = cast(List[str], prompts)
+        prompt_objs = [Prompt(p) for p in str_prompts]
+    else:
+        str_prompts = [p.construct_prompt() for p in cast(List[Prompt], prompts)]
+        prompt_objs = cast(List[Prompt], prompts)
+    results = task.evaluate(prompt_objs, predictor, eval_strategy="full")
+    scores = results.agg_scores.tolist()
     df = pd.DataFrame(dict(prompt=str_prompts, score=scores))
     df = df.sort_values("score", ascending=False, ignore_index=True)
 
@@ -127,7 +130,7 @@ def run_evaluation(df: pd.DataFrame, config: "ExperimentConfig", prompts: List[P
 
 
 def get_llm(model_id: Optional[str] = None, config: Optional["ExperimentConfig"] = None) -> "BaseLLM":
-    """Factory function to create and return a language model instance based on the provided model_id.
+    """Create and return a language model instance based on the provided model_id.
 
     This function supports three types of language models:
     1. LocalLLM: For running models locally.
@@ -199,10 +202,9 @@ def get_optimizer(
     meta_llm: "BaseLLM",
     task: "BaseTask",
     optimizer: Optional["OptimizerType"] = None,
-    task_description: Optional[str] = None,
     config: Optional["ExperimentConfig"] = None,
 ) -> "BaseOptimizer":
-    """Creates and returns an optimizer instance based on provided parameters.
+    """Create and return an optimizer instance based on provided parameters.
 
     Args:
         predictor: The predictor used for prompt evaluation
@@ -210,7 +212,6 @@ def get_optimizer(
         task: The task object used for evaluating prompts
         optimizer: String identifying which optimizer to use
         meta_prompt: Meta prompt text for the optimizer
-        task_description: Description of the task for the optimizer
         config: Configuration object with default parameters
 
     Returns:
@@ -220,10 +221,6 @@ def get_optimizer(
         ValueError: If an unknown optimizer type is specified
     """
     final_optimizer = optimizer or (config.optimizer if config else None)
-    if config is None:
-        config = ExperimentConfig()
-    if task_description is not None:
-        config.task_description = task_description
 
     if final_optimizer == "capo":
         return CAPO(
@@ -248,7 +245,7 @@ def get_optimizer(
 def get_exemplar_selector(
     name: Literal["random", "random_search"], task: "BaseTask", predictor: "BasePredictor"
 ) -> "BaseExemplarSelector":
-    """Factory function to get an exemplar selector based on the given name.
+    """Get an exemplar selector based on the given name.
 
     Args:
         name (str): The name of the exemplar selector to instantiate.
@@ -269,8 +266,10 @@ def get_exemplar_selector(
         raise ValueError(f"Unknown exemplar selector: {name}")
 
 
-def get_predictor(downstream_llm=None, type: "PredictorType" = "marker", *args, **kwargs) -> "BasePredictor":
-    """Factory function to create and return a predictor instance.
+def get_predictor(
+    downstream_llm: Optional["BaseLLM"] = None, type: "PredictorType" = "marker", *args, **kwargs
+) -> "BasePredictor":
+    """Create and return a predictor instance.
 
     This function supports three types of predictors:
     1. FirstOccurrencePredictor: A predictor that classifies based on first occurrence of the label.
@@ -287,6 +286,7 @@ def get_predictor(downstream_llm=None, type: "PredictorType" = "marker", *args, 
     Returns:
         An instance of FirstOccurrencePredictor or MarkerBasedPredictor.
     """
+    assert downstream_llm is not None, "downstream_llm must be provided to create a predictor."
     if type == "first_occurrence":
         return FirstOccurrencePredictor(downstream_llm, *args, **kwargs)
     elif type == "marker":

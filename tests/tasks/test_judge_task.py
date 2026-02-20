@@ -57,17 +57,18 @@ def test_judge_task_evaluate_with_ground_truth(mock_judge_task_with_y, mock_pred
     mock_predictor.call_history = []
     mock_judge_llm.call_history = []
 
-    scores_per_datapoint = mock_judge_task_with_y.evaluate(prompts, mock_predictor, return_agg_scores=False)
+    result = mock_judge_task_with_y.evaluate(prompts, mock_predictor)
+    scores_per_datapoint = result.scores
 
-    assert len(scores_per_datapoint) == len(prompts)
+    assert scores_per_datapoint.shape[0] == len(prompts)
     expected_scores = [1.0, 0, 0.5]
     np.testing.assert_allclose(scores_per_datapoint[0], expected_scores)
 
     mock_predictor.call_history = []
     mock_judge_llm.call_history = []
 
-    aggregated_scores = mock_judge_task_with_y.evaluate(prompts, mock_predictor, return_agg_scores=True)
-    assert len(aggregated_scores) == len(prompts)
+    aggregated_scores = result.agg_scores
+    assert aggregated_scores.shape[0] == len(prompts)
     expected_scores = [0.5, 0.4333333, 0.0]
     np.testing.assert_allclose(aggregated_scores, expected_scores)
 
@@ -80,9 +81,10 @@ def test_judge_task_evaluate_no_ground_truth(mock_judge_task_no_y, mock_predicto
     mock_predictor.call_history = []
     mock_judge_llm.call_history = []
 
-    aggregated_scores = mock_judge_task_no_y.evaluate(prompts, mock_predictor, return_agg_scores=True)
+    aggregated_result = mock_judge_task_no_y.evaluate(prompts, mock_predictor)
+    aggregated_scores = aggregated_result.agg_scores
 
-    assert len(aggregated_scores) == len(prompts)
+    assert aggregated_scores.shape[0] == len(prompts)
     expected_scores = [0.5, 0.55, 0.35]
     np.testing.assert_allclose(aggregated_scores, expected_scores)
 
@@ -92,9 +94,9 @@ def test_judge_task_evaluate_with_return_seq(mock_judge_task_with_y, mock_predic
     prompts = ["Evaluate this text:", "What is the sentiment?", "How would you classify this?"]
     prompts = [Prompt(p) for p in prompts]
 
-    scores, seqs = mock_judge_task_with_y.evaluate(prompts, mock_predictor, return_seq=True, return_agg_scores=False)
+    seq_result = mock_judge_task_with_y.evaluate(prompts, mock_predictor)
 
-    assert len(scores) == 3
-    assert len(scores[0]) == len(mock_judge_task_with_y.xs)
-    assert len(seqs) == 3
-    assert len(seqs[0]) == len(mock_judge_task_with_y.xs)
+    assert seq_result.scores.shape == (3, len(mock_judge_task_with_y.xs))
+    assert seq_result.sequences is not None
+    assert seq_result.sequences.shape == (3, len(mock_judge_task_with_y.xs))
+    assert seq_result.agg_input_tokens is not None

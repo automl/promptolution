@@ -1,3 +1,6 @@
+import pandas as pd
+
+from promptolution.tasks.reward_tasks import RewardTask
 from promptolution.utils.prompt import Prompt
 
 
@@ -24,7 +27,29 @@ def test_reward_task_evaluate_with_return_seq(mock_reward_task, mock_predictor):
     """Test the evaluate method with return_seq=True for RewardTask."""
     prompts = [Prompt("Generate a short text:")]
 
-    scores, seqs = mock_reward_task.evaluate(prompts, mock_predictor, return_seq=True, return_agg_scores=False)
+    result = mock_reward_task.evaluate(prompts, mock_predictor)
 
-    assert len(scores) == 1
-    assert len(seqs) == 1
+    assert result.scores.shape[0] == 1
+    assert result.sequences is not None
+    assert result.sequences.shape[0] == 1
+    assert result.agg_input_tokens is not None
+
+
+def test_reward_task_passes_reward_columns():
+    """Ensure reward kwargs come from dataframe columns."""
+    df = pd.DataFrame({"x": ["a", "b", "c"], "reward": [0.1, 0.2, 0.3]})
+
+    seen_rewards: list[float] = []
+
+    def reward_fn(prediction: str, reward: float) -> float:
+        seen_rewards.append(reward)
+        return reward if prediction == "keep" else -1.0
+
+    task = RewardTask(df=df, reward_function=reward_fn, x_column="x", reward_columns=["reward"])
+
+    xs = ["a", "b", "c"]
+    preds = ["keep", "keep", "nope"]
+    scores = task._evaluate(xs, [""] * len(xs), preds)
+
+    assert scores.tolist() == [0.1, 0.2, -1.0]
+    assert seen_rewards == [0.1, 0.2, 0.3]

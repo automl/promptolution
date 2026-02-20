@@ -13,7 +13,7 @@ from promptolution.utils.logging import get_logger
 logger = get_logger(__name__)
 
 
-def get_token_counter(llm: "BaseLLM") -> Callable[[str], int]:
+def get_token_counter(llm: "BaseLLM") -> Callable[[str], float]:
     """Get a token counter function for the given LLM.
 
     This function returns a callable that counts tokens based on the LLM's tokenizer
@@ -28,7 +28,7 @@ def get_token_counter(llm: "BaseLLM") -> Callable[[str], int]:
     """
     if llm.tokenizer is not None:
         tokenizer: "PreTrainedTokenizer" = llm.tokenizer
-        return lambda x: len(tokenizer.encode(x))
+        return lambda x: float(len(tokenizer.encode(x)))
     else:
         logger.warning("⚠️ The LLM does not have a tokenizer. Using simple token count.")
-        return lambda x: len(x.split())
+        return lambda x: float(len(x.split()))

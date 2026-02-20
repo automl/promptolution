@@ -114,7 +114,7 @@ With everything configured, you're ready to optimize your prompts! The `run_expe
 prompts = run_experiment(df, config)
 ```
 
-    📌 CAPO requires block evaluation strategy. Setting it to 'sequential_block'.
+    📌 CAPO-style optimizers require block evaluation strategy. Setting it to 'sequential_block'.
     ⚠️ The LLM does not have a tokenizer. Using simple token count.
     🔥 Starting optimization...
     📊 Starting evaluation...

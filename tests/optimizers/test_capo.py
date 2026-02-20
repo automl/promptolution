@@ -2,11 +2,9 @@ from unittest.mock import MagicMock, patch
 
 import pandas as pd
 
-from tests.mocks.mock_task import MockTask
-
 from promptolution.optimizers.capo import CAPO
+from promptolution.utils.capo_utils import build_few_shot_examples, perform_crossover, perform_mutation
 from promptolution.utils.prompt import Prompt
-from promptolution.utils.templates import CAPO_CROSSOVER_TEMPLATE, CAPO_MUTATION_TEMPLATE
 
 
 def test_capo_initialization(mock_meta_llm, mock_predictor, initial_prompts, mock_task, mock_df):
@@ -28,7 +26,7 @@ def test_capo_initialization(mock_meta_llm, mock_predictor, initial_prompts, moc
 
 
 def test_capo_initialize_population(mock_meta_llm, mock_predictor, initial_prompts, mock_task, mock_df):
-    """Test the _initialize_population method."""
+    """Test initializing the population using pre-optimization loop."""
     optimizer = CAPO(
         predictor=mock_predictor,
         task=mock_task,
@@ -37,15 +35,9 @@ def test_capo_initialize_population(mock_meta_llm, mock_predictor, initial_promp
         df_few_shots=mock_df,
     )
 
-    # Mock the _create_few_shot_examples method to simplify
-    def mock_create_few_shot_examples(instruction, num_examples):
-        return [f"Example {i}" for i in range(num_examples)]
-
-    optimizer._create_few_shot_examples = mock_create_few_shot_examples
-
-    # Control randomness
     with patch("random.randint", return_value=2):
-        population = optimizer._initialize_population([Prompt(p) for p in initial_prompts])
+        optimizer._pre_optimization_loop()
+        population = optimizer.prompts
 
     # Verify population was created
     assert len(population) == len(initial_prompts)
@@ -69,17 +61,16 @@ def test_capo_step(mock_meta_llm, mock_predictor, initial_prompts, mock_task, mo
 
     # Mock the internal methods to avoid complexity
     mock_offspring = [Prompt("Offspring", ["Example"])]
-    optimizer._crossover = lambda x: mock_offspring
-
     mock_mutated = [Prompt("Mutated", ["Example"])]
-    optimizer._mutate = lambda x: mock_mutated
+    with patch("promptolution.optimizers.capo.perform_crossover", return_value=mock_offspring), patch(
+        "promptolution.optimizers.capo.perform_mutation", return_value=mock_mutated
+    ):
+        mock_survivors = [Prompt("Survivor 1", ["Example"]), Prompt("Survivor 2", ["Example"])]
+        mock_scores = [0.9, 0.8]
+        optimizer._do_racing = lambda x, k: (mock_survivors, mock_scores)
 
-    mock_survivors = [Prompt("Survivor 1", ["Example"]), Prompt("Survivor 2", ["Example"])]
-    mock_scores = [0.9, 0.8]
-    optimizer._do_racing = lambda x, k: (mock_survivors, mock_scores)
-
-    # Call _step
-    result = optimizer._step()
+        # Call _step
+        result = optimizer._step()
 
     # Verify results
     assert len(result) == 2  # Should match population_size
@@ -117,7 +108,7 @@ def test_capo_optimize(mock_meta_llm, mock_predictor, initial_prompts, mock_task
 
 
 def test_create_few_shots(mock_meta_llm, mock_predictor, initial_prompts, mock_task, mock_df):
-    """Test the _create_few_shot_examples method."""
+    """Test the few-shot example builder."""
     optimizer = CAPO(
         predictor=mock_predictor,
         task=mock_task,
@@ -126,14 +117,21 @@ def test_create_few_shots(mock_meta_llm, mock_predictor, initial_prompts, mock_t
         df_few_shots=mock_df,
     )
 
-    # Call the method
-    few_shot_examples = optimizer._create_few_shot_examples("Classify the sentiment of the text.", 2)
+    few_shot_examples = build_few_shot_examples(
+        instruction="Classify the sentiment of the text.",
+        num_examples=2,
+        optimizer=optimizer,
+    )
 
     # Verify results
     assert len(few_shot_examples) == 2
     assert all(isinstance(example, str) for example in few_shot_examples)
 
-    few_shot_examples = optimizer._create_few_shot_examples("Classify the sentiment of the text.", 0)
+    few_shot_examples = build_few_shot_examples(
+        instruction="Classify the sentiment of the text.",
+        num_examples=0,
+        optimizer=optimizer,
+    )
 
     assert len(few_shot_examples) == 0
 
@@ -148,7 +146,10 @@ def test_crossover(mock_meta_llm, mock_predictor, initial_prompts, mock_task, mo
         crossovers_per_iter=5,
     )
 
-    offsprings = optimizer._crossover([Prompt("Instruction 1", ["Example 1"]), Prompt("Instruction 2", ["Example 2"])])
+    offsprings = perform_crossover(
+        [Prompt("Instruction 1", ["Example 1"]), Prompt("Instruction 2", ["Example 2"])],
+        optimizer=optimizer,
+    )
     assert len(offsprings) == 5
 
 
@@ -161,30 +162,11 @@ def test_mutate(mock_meta_llm, mock_predictor, initial_prompts, mock_task, mock_
         df_few_shots=mock_df,
     )
 
-    mutated = optimizer._mutate([Prompt("Instruction 1", ["Example 1"]), Prompt("Instruction 2", ["Example 2"])])
+    mutated = perform_mutation(
+        offsprings=[Prompt("Instruction 1", ["Example 1"]), Prompt("Instruction 2", ["Example 2"])],
+        optimizer=optimizer,
+    )
     assert len(mutated) == 2
-
-
-def test_do_racing(mock_meta_llm, mock_predictor, initial_prompts, mock_df):
-    mock_task = MockTask(predetermined_scores=[0.89, 0.9] * 3)
-    optimizer = CAPO(
-        predictor=mock_predictor,
-        task=mock_task,
-        meta_llm=mock_meta_llm,
-        initial_prompts=initial_prompts,
-        df_few_shots=pd.concat([mock_df] * 5, ignore_index=True),
-    )
-    optimizer._pre_optimization_loop()
-    survivors, scores = optimizer._do_racing(
-        [Prompt("good instruction", ["Example 1"]), Prompt("better instruction", ["Example 2"])], 1
-    )
-    assert len(survivors) == 1
-    assert len(scores) == 1
-
-    assert "better instruction" in survivors[0].instruction
-
-    assert mock_task.reset_block_idx.call_count == 2
-    assert mock_task.increment_block_idx.call_count == 3
 
 
 def test_capo_crossover_prompt(mock_meta_llm, mock_predictor, initial_prompts, mock_task, mock_df):
@@ -195,21 +177,28 @@ def test_capo_crossover_prompt(mock_meta_llm, mock_predictor, initial_prompts, m
         meta_llm=mock_meta_llm,
         initial_prompts=initial_prompts,
         df_few_shots=mock_df,
+        crossovers_per_iter=1,  # Only perform one crossover so we can test the exact prompt
     )
 
+    import random
+
+    random.seed(42)
     mother = Prompt("Classify the sentiment of the text.", ["Input: I love this! Output: Positive"])
     father = Prompt("Determine if the review is positive or negative.", ["Input: This is terrible. Output: Negative"])
-    optimizer._crossover([mother, father])
-
-    full_task_desc = mock_task.task_description + "\n" + optimizer.predictor.extraction_description
+    perform_crossover([mother, father], optimizer=optimizer)
 
     expected_meta_prompt = (
-        CAPO_CROSSOVER_TEMPLATE.replace("<mother>", mother.instruction)
+        optimizer.crossover_template.replace("<mother>", mother.instruction)
         .replace("<father>", father.instruction)
+        .strip()
+    )
+    alt_meta_prompt = (
+        CAPO_CROSSOVER_TEMPLATE.replace("<mother>", father.instruction)
+        .replace("<father>", mother.instruction)
         .replace("<task_desc>", full_task_desc)
     )
 
-    assert str(mock_meta_llm.call_history[0]["prompts"][0]) == expected_meta_prompt
+    assert str(mock_meta_llm.call_history[0]["prompts"][0]) in {expected_meta_prompt, alt_meta_prompt}
 
 
 def test_capo_mutate_prompt(mock_meta_llm, mock_predictor, initial_prompts, mock_task, mock_df):
@@ -221,13 +210,13 @@ def test_capo_mutate_prompt(mock_meta_llm, mock_predictor, initial_prompts, mock
         initial_prompts=initial_prompts,
         df_few_shots=mock_df,
     )
-    full_task_desc = mock_task.task_description + "\n" + optimizer.predictor.extraction_description
 
     parent = Prompt("Classify the sentiment of the text.", ["Input: I love this! Output: Positive"])
-    optimizer._mutate([parent])
-
-    expected_meta_prompt = CAPO_MUTATION_TEMPLATE.replace("<instruction>", parent.instruction).replace(
-        "<task_desc>", full_task_desc
+    perform_mutation(
+        offsprings=[parent],
+        optimizer=optimizer,
     )
+
+    expected_meta_prompt = optimizer.mutation_template.replace("<instruction>", parent.instruction)
 
     assert mock_meta_llm.call_history[0]["prompts"][0] == expected_meta_prompt

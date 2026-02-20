@@ -1,5 +1,6 @@
 """Module for judge tasks."""
 
+import numpy as np
 import pandas as pd
 
 from typing import TYPE_CHECKING, List, Optional
@@ -60,7 +61,7 @@ Return your answer encompased by <final_score></final_score>"""
 
 
 class JudgeTask(BaseTask):
-    """Task that evaluates a predictor using an LLM as a judge, optionally accepting a ground truth."""
+    """Task that evaluates a predictor using an LLM-as-a-judge, optionally accepting a ground truth."""
 
     def __init__(
         self,
@@ -110,9 +111,10 @@ class JudgeTask(BaseTask):
             config=config,
         )
         self.judge_llm = judge_llm
+        self.task_type = "judge"
 
     def _construct_judge_prompt(self, x: str, pred: str, y: Optional[str] = None) -> str:
-        """Constructs the judge prompt based on whether ground truth is available."""
+        """Construct the judge prompt based on whether ground truth is available."""
         if y is not None:
             prompt = self.judge_prompt.replace("{ground_truth}", str(y))
         else:
@@ -122,7 +124,7 @@ class JudgeTask(BaseTask):
         prompt = prompt.replace("{task}", task_description).replace("{input}", x).replace("{prediction}", pred)
         return prompt
 
-    def _evaluate(self, xs: List[str], ys: List[str], preds: List[str]) -> List[float]:
+    def _evaluate(self, xs: List[str], ys: List[str], preds: List[str]) -> np.ndarray:
         """Calculate the score for a single prediction using the LLM judge."""
         prompts: List[str] = []
         for x, y, pred in zip(xs, ys, preds):
@@ -145,4 +147,4 @@ class JudgeTask(BaseTask):
 
             scores.append(score)
 
-        return scores
+        return np.asarray(scores, dtype=float)
