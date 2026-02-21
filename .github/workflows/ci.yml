@@ -69,7 +69,7 @@ jobs:
 
       - name: Commit coverage updates to README
         # Only run for PRs from the same repository (not forks)
-        if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+        if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
         uses: stefanzweifel/git-auto-commit-action@v4
         with:
           commit_message: "Update coverage badge in README [skip ci]"
