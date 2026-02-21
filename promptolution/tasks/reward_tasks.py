@@ -6,7 +6,7 @@ from collections import defaultdict
 import numpy as np
 import pandas as pd
 
-from typing import TYPE_CHECKING, Callable, List, Literal, Optional
+from typing import TYPE_CHECKING, Callable, List, Optional
 
 from promptolution.tasks.base_task import BaseTask
 

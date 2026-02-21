@@ -80,8 +80,6 @@ def create_prompts_from_samples(
     Returns:
         List[str]: A list of generated prompts.
     """
-    from promptolution.tasks.classification_tasks import ClassificationTask
-
     meta_prompt_template: str
     if meta_prompt is None:
         if task_description is None:

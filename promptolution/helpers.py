@@ -1,6 +1,6 @@
 """Helper functions for the usage of the libary."""
 
-from typing import TYPE_CHECKING, Callable, List, Literal, Optional, cast
+from typing import TYPE_CHECKING, Callable, List, Literal, Optional, Union, cast
 
 from promptolution.tasks.judge_tasks import JudgeTask
 from promptolution.tasks.reward_tasks import RewardTask
@@ -78,8 +78,6 @@ def run_optimization(df: pd.DataFrame, config: "ExperimentConfig") -> List[Promp
             llm=llm,
         )
         config.prompts = [Prompt(p) for p in initial_prompts]
-    elif len(config.prompts) > 0 and isinstance(config.prompts[0], str):
-        config.prompts = [Prompt(p) for p in cast(List[str], config.prompts)]
 
     task = get_task(df, config, judge_llm=llm)
     optimizer = get_optimizer(
@@ -97,7 +95,9 @@ def run_optimization(df: pd.DataFrame, config: "ExperimentConfig") -> List[Promp
     return prompts
 
 
-def run_evaluation(df: pd.DataFrame, config: "ExperimentConfig", prompts: List[Prompt]) -> pd.DataFrame:
+def run_evaluation(
+    df: pd.DataFrame, config: "ExperimentConfig", prompts: Union[List[Prompt], List[str]]
+) -> pd.DataFrame:
     """Run the evaluation phase of the experiment.
 
     Configures all LLMs (downstream, meta, and judge) to use
@@ -106,7 +106,7 @@ def run_evaluation(df: pd.DataFrame, config: "ExperimentConfig", prompts: List[P
     Args:
         df (pd.DataFrame): Input DataFrame containing the data.
         config (Config): Configuration object for the experiment.
-        prompts (List[Prompt]): List of prompts to evaluate.
+        prompts (Union[List[Prompt], List[str]]): List of prompts to evaluate.
 
     Returns:
         pd.DataFrame: A DataFrame containing the prompts and their scores.
