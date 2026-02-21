@@ -52,8 +52,7 @@ def run_experiment(df: pd.DataFrame, config: "ExperimentConfig") -> pd.DataFrame
     train_df = df.sample(frac=0.8, random_state=42)
     test_df = df.drop(train_df.index)
     prompts = run_optimization(train_df, config)
-    prompts_str = [p.construct_prompt() for p in prompts]
-    df_prompt_scores = run_evaluation(test_df, config, prompts_str)
+    df_prompt_scores = run_evaluation(test_df, config, prompts)
 
     return df_prompt_scores
 
@@ -107,7 +106,7 @@ def run_evaluation(
     Args:
         df (pd.DataFrame): Input DataFrame containing the data.
         config (Config): Configuration object for the experiment.
-        prompts (List[str]): List of prompts to evaluate.
+        prompts (Union[List[Prompt], List[str]]): List of prompts to evaluate.
 
     Returns:
         pd.DataFrame: A DataFrame containing the prompts and their scores.

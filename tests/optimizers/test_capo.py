@@ -3,6 +3,7 @@ from unittest.mock import MagicMock, patch
 import pandas as pd
 
 from promptolution.optimizers.capo import CAPO
+from promptolution.utils import CAPO_CROSSOVER_TEMPLATE
 from promptolution.utils.capo_utils import build_few_shot_examples, perform_crossover, perform_mutation
 from promptolution.utils.prompt import Prompt
 
@@ -195,7 +196,7 @@ def test_capo_crossover_prompt(mock_meta_llm, mock_predictor, initial_prompts, m
     alt_meta_prompt = (
         CAPO_CROSSOVER_TEMPLATE.replace("<mother>", father.instruction)
         .replace("<father>", mother.instruction)
-        .replace("<task_desc>", full_task_desc)
+        .replace("<task_desc>", mock_task.task_description)
     )
 
     assert str(mock_meta_llm.call_history[0]["prompts"][0]) in {expected_meta_prompt, alt_meta_prompt}

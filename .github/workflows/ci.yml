@@ -37,6 +37,8 @@ jobs:
 
       - name: Generate coverage report & comment on PR
         id: coverageComment
+        # Only run for PRs from the same repository (not forks)
+        if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
         uses: MishaKav/pytest-coverage-comment@main
         with:
           pytest-coverage-path: ./pytest-coverage.txt
@@ -44,6 +46,8 @@ jobs:
           hide-report: true
 
       - name: Update README with coverage badge
+        # Only run for PRs from the same repository (not forks)
+        if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
         run: |
           cat > update_readme.py << 'EOF'
           import re
@@ -64,6 +68,8 @@ jobs:
           python update_readme.py
 
       - name: Commit coverage updates to README
+        # Only run for PRs from the same repository (not forks)
+        if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
         uses: stefanzweifel/git-auto-commit-action@v4
         with:
           commit_message: "Update coverage badge in README [skip ci]"

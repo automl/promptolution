@@ -289,7 +289,7 @@ def test_run_experiment(mock_run_evaluation, mock_run_optimization, sample_df, e
     assert len(train_df) + len(test_df) == len(sample_df)
 
     # Verify the prompts were passed to evaluation
-    assert mock_run_evaluation.call_args[0][2] == optimized_prompts_strs
+    assert mock_run_evaluation.call_args[0][2] == optimized_prompts
 
 
 def test_helpers_integration(sample_df, experiment_config):
