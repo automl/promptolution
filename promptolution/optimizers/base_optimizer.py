@@ -51,7 +51,18 @@ class BaseOptimizer(ABC):
             config (ExperimentConfig, optional): Configuration for the optimizer, overriding defaults.
         """
         # Set up optimizer state
-        self.prompts: List[Prompt] = [Prompt(p) for p in initial_prompts] if initial_prompts else []
+        if config is not None:
+            config.apply_to(self)
+
+        if initial_prompts is None and config is not None:
+            initial_prompts = config.prompts
+
+        assert initial_prompts is not None, "Initial prompts must be provided either directly or through the config."
+        if isinstance(initial_prompts[0], str):
+            self.prompts = [Prompt(p) for p in initial_prompts]
+        else:
+            self.prompts = initial_prompts
+
         if task.task_type == "multi" and not self.supports_multi_objective:
             logger.warning(
                 f"{self.__class__.__name__} does not support multi-objective tasks, objectives will be averaged equally.",
@@ -62,10 +73,6 @@ class BaseOptimizer(ABC):
         self.callbacks: List["BaseCallback"] = callbacks or []
         self.predictor = predictor
         self.scores: List[float] = []
-
-        if config is not None:
-            config.apply_to(self)
-
         self.config = config
 
     def optimize(self, n_steps: int) -> List[Prompt]:
