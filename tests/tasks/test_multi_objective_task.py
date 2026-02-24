@@ -112,10 +112,12 @@ def test_multi_objective_fallback_warns_and_averages(caplog):
     t2 = ConstantTask(df.copy(), value=3.0)
     mo_task = MultiObjectiveTask([t1, t2])
 
+    dummy_prompts = [Prompt("p")]
+
     predictor = MockPredictor(llm=MockLLM(predetermined_responses=["p1", "p2"]))
 
     with caplog.at_level("WARNING"):
-        DummyOptimizer(predictor=predictor, task=mo_task)
+        DummyOptimizer(predictor=predictor, task=mo_task, initial_prompts=dummy_prompts)
 
     assert mo_task._scalarized_objective is True
     assert any("averaged equally" in message for message in caplog.messages)
