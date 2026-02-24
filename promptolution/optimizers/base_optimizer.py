@@ -54,7 +54,7 @@ class BaseOptimizer(ABC):
         if config is not None:
             config.apply_to(self)
 
-        if initial_prompts is None and config is not None:
+        if initial_prompts is None and config is not None and config.prompts is not None:
             initial_prompts = config.prompts
 
         assert initial_prompts is not None, "Initial prompts must be provided either directly or through the config."

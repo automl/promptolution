@@ -400,7 +400,7 @@ def test_get_task_variants(sample_df):
 def test_get_optimizer_variants():
     pred = MockPredictor(llm=MockLLM())
     task = MockTask()
-    cfg = ExperimentConfig()
+    cfg = ExperimentConfig(prompts=[Prompt("p1"), Prompt("p2")])
 
     opt = get_optimizer(pred, MockLLM(), task, optimizer="capo", config=cfg)
 
