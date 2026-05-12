@@ -57,12 +57,7 @@ def test_reward_task_passes_reward_columns():
 
 
 def test_reward_task_x_column_from_config(simple_reward_function):
-    """Regression test: ExperimentConfig.x_column must override the default before df indexing.
-
-    Previously the default ``x_column='x'`` was applied to ``df.drop_duplicates``
-    before ``config.apply_to(self)`` ran, causing a KeyError when the dataframe
-    used a different column name. See GitHub issue #67.
-    """
+    """Regression for issue #67."""
     df = pd.DataFrame({"my_input": ["a", "b", "c"]})
     config = ExperimentConfig(x_column="my_input")
     task = RewardTask(df=df, reward_function=simple_reward_function, config=config)
