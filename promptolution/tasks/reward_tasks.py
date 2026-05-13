@@ -63,7 +63,7 @@ class RewardTask(BaseTask):
         )
         self.task_type = "reward"
         # x -> kwargs to reward function
-        km = self.df.set_index(x_column)[self.reward_columns].to_dict("index")
+        km = self.df.set_index(self.x_column)[self.reward_columns].to_dict("index")
         self.kwargs_map = defaultdict(dict, km)
 
     def _evaluate(self, xs: List[str], ys: List[str], preds: List[str]) -> np.ndarray:

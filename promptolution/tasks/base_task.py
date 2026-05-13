@@ -63,11 +63,6 @@ class BaseTask(ABC):
             seed (int): Random seed for reproducibility.
             config (ExperimentConfig, optional): Configuration for the task, overriding defaults.
         """
-        self.df = df.drop_duplicates(subset=[x_column])
-        if len(self.df) != len(df):
-            logger.warning(
-                f"Duplicate entries detected for x_column '{x_column}' - dropped {len(df) - len(self.df)} rows to enforce uniqueness."
-            )
         self.x_column: str = x_column
         self.y_column: Optional[str] = y_column
         self.task_type: TaskType | None = None
@@ -80,10 +75,16 @@ class BaseTask(ABC):
         if config is not None:
             config.apply_to(self)
 
+        self.df = df.drop_duplicates(subset=[self.x_column])
+        if len(self.df) != len(df):
+            logger.warning(
+                f"Duplicate entries detected for x_column '{self.x_column}' - dropped {len(df) - len(self.df)} rows to enforce uniqueness."
+            )
+
         self.xs: List[str] = self.df[self.x_column].values.astype(str).tolist()
-        self.has_y: bool = y_column is not None
-        if self.has_y and y_column is not None:
-            self.ys: List[str] = self.df[y_column].values.astype(str).tolist()
+        self.has_y: bool = self.y_column is not None
+        if self.has_y and self.y_column is not None:
+            self.ys: List[str] = self.df[self.y_column].values.astype(str).tolist()
         else:
             # If no y_column is provided, create a dummy y array
             self.ys = [""] * len(self.xs)
