@@ -79,7 +79,7 @@ class LocalLLM(BaseLLM):
         """
         inputs: List[List[Dict[str, str]]] = []
         for prompt, sys_prompt in zip(prompts, system_prompts):
-            inputs.append([{"role": "system", "prompt": sys_prompt}, {"role": "user", "prompt": prompt}])
+            inputs.append([{"role": "system", "content": sys_prompt}, {"role": "user", "content": prompt}])
 
         with torch.no_grad():
             response = self.pipeline(inputs, pad_token_id=self.eos_token_id)
