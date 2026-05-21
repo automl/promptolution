@@ -86,8 +86,6 @@ class LocalLLM(BaseLLM):
 
         if len(response) != 1:
             response = [r[0] if isinstance(r, list) else r for r in response]
-        elif len(response) == 1 and isinstance(response[0], list):
-            response = response[0]
 
         response = [r["generated_text"] for r in response]
         return response
