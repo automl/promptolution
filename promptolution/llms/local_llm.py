@@ -84,11 +84,7 @@ class LocalLLM(BaseLLM):
         with torch.no_grad():
             response = self.pipeline(inputs, pad_token_id=self.eos_token_id)
 
-        if len(response) != 1:
-            response = [r[0] if isinstance(r, list) else r for r in response]
-        elif len(response) == 1 and isinstance(response[0], list):
-            response = response[0]
-
+        response = [r[0] if isinstance(r, list) else r for r in response]
         response = [r["generated_text"] for r in response]
         return response
 
