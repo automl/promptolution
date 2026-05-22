@@ -54,6 +54,7 @@ pytest-cov = ">=6.1.1"
 openai = ">=1.0.0"
 requests = ">=2.31.0"
 transformers = ">=4.48.0"
+vllm = ">=0.13.0"
 torch = ">=2.0.0"
 
 [tool.poetry.group.docs.dependencies]
