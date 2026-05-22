@@ -1,6 +1,7 @@
 from unittest.mock import MagicMock, patch
 
 import pytest
+from transformers import AutoTokenizer
 
 from promptolution.llms import LocalLLM
 
@@ -67,3 +68,44 @@ def test_local_llm_get_response(mock_local_dependencies):
     assert len(responses) == 2
     assert responses[0] == "Mock response 1"
     assert responses[1] == "Mock response 2"
+
+
+@pytest.mark.parametrize(
+    "model_id",
+    [
+        "Qwen/Qwen2.5-0.5B-Instruct",
+        "google/gemma-3-270m-it",
+        "meta-llama/Llama-3.2-1B-Instruct",
+        "mistralai/Mistral-Nemo-Instruct-2407",
+    ],
+)
+def test_local_llm_chat_template_renders(model_id):
+    """Regression for #71: message dicts must use 'content' key so the
+    tokenizer's chat template renders the system and user text."""
+    tokenizer = AutoTokenizer.from_pretrained(model_id)
+
+    with patch("promptolution.llms.local_llm.pipeline") as mock_pipeline_func, patch(
+        "promptolution.llms.local_llm.torch"
+    ):
+        mock_pipeline_obj = MagicMock()
+        mock_pipeline_obj.tokenizer = tokenizer
+        mock_pipeline_func.return_value = mock_pipeline_obj
+
+        def fake_call(inputs, **_):
+            return [
+                [{"generated_text": tokenizer.apply_chat_template(msg, tokenize=False, add_generation_prompt=True)}]
+                for msg in inputs
+            ]
+
+        mock_pipeline_obj.side_effect = fake_call
+
+        local_llm = LocalLLM(model_id=model_id, batch_size=2)
+        prompts = ["What is 2 + 2?", "Name a colour."]
+        sys_prompts = ["You are a math tutor.", "You are concise."]
+
+        responses = local_llm._get_response(prompts, system_prompts=sys_prompts)
+
+        assert len(responses) == 2
+        for response, prompt, sys_prompt in zip(responses, prompts, sys_prompts):
+            assert prompt in response
+            assert sys_prompt in response
