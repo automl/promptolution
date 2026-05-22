@@ -23,7 +23,6 @@ scipy = ">=1.15"
 api = ["openai", "requests"]
 vllm = ["vllm"]
 transformers = ["transformers"]
-gui = ["gradio"]
 
 [tool.poetry.group.api]
 optional = true
@@ -40,11 +39,6 @@ vllm = ">=0.13.0"
 optional = true
 [tool.poetry.group.transformers.dependencies]
 transformers = ">=4.48.0"
-
-[tool.poetry.group.gui]
-optional = true
-[tool.poetry.group.gui.dependencies]
-gradio = ">=4.0.0"
 
 [tool.poetry.group.dev.dependencies]
 black = ">=24.4.2"
