@@ -74,8 +74,8 @@ def test_local_llm_get_response(mock_local_dependencies):
     "model_id",
     [
         "Qwen/Qwen2.5-0.5B-Instruct",
-        "google/gemma-3-270m-it",
-        "meta-llama/Llama-3.2-1B-Instruct",
+        "HuggingFaceTB/SmolLM2-135M-Instruct",
+        "microsoft/Phi-3.5-mini-instruct",
         "mistralai/Mistral-Nemo-Instruct-2407",
     ],
 )
