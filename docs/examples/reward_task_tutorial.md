@@ -69,7 +69,7 @@ print(df["article"].iloc[0][:170] + "...")
     Investors looking to make an easy buck out of the housing market could be running out of time. Australia's financial regulators are in talks to tighten the process for in...
     
 
-### Creating Inital Prompts
+### Creating Initial Prompts
 
 Here are some starter prompts for JSON extraction. Feel free to experiment with your own approaches!
 
