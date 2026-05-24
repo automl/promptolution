@@ -78,6 +78,8 @@ def test_local_llm_get_response_nested_single(mock_local_dependencies):
     responses = local_llm._get_response(["Hello, world!"], system_prompts=["System prompt"])
 
     assert responses == ["Mock response"]
+
+
 @pytest.mark.parametrize(
     "model_id",
     [
