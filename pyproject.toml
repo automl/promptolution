@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "promptolution"
-version = "2.2.2"
+version = "2.2.3"
 description = "A framework for prompt optimization and a zoo of prompt optimization algorithms."
 authors = ["Tom Zehle, Moritz Schlager, Timo Heiß"]
 readme = "README.md"
@@ -16,12 +16,13 @@ openai = {version = ">=1.0.0", optional = true}
 requests = {version = ">=2.31.0", optional = true}
 vllm = {version = ">=0.13.0", optional = true}
 transformers = {version = ">=4.48.0", optional = true}
+accelerate = {version = ">=0.20.0", optional = true}
 scipy = ">=1.15"
 
 [tool.poetry.extras]
 api = ["openai", "requests"]
 vllm = ["vllm"]
-transformers = ["transformers"]
+transformers = ["transformers", "accelerate"]
 
 [tool.poetry.group.api]
 optional = true
@@ -38,6 +39,7 @@ vllm = ">=0.13.0"
 optional = true
 [tool.poetry.group.transformers.dependencies]
 transformers = ">=4.48.0"
+accelerate = ">=0.20.0"
 
 [tool.poetry.group.dev.dependencies]
 black = ">=24.4.2"
