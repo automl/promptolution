@@ -1,5 +1,5 @@
 
-![Coverage](https://img.shields.io/badge/Coverage-90%25-brightgreen)
+![Coverage](https://img.shields.io/badge/Coverage-96%25-brightgreen)
 [![CI](https://github.com/automl/promptolution/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/automl/promptolution/actions/workflows/ci.yml)
 [![Docs](https://github.com/automl/promptolution/actions/workflows/docs.yml/badge.svg?branch=main)](https://github.com/automl/promptolution/actions/workflows/docs.yml)
 [![PyPI version](https://img.shields.io/pypi/v/promptolution.svg)](https://pypi.org/project/promptolution/)
