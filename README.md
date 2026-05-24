@@ -41,24 +41,13 @@ Have a look at our [Release Notes](https://automl.github.io/promptolution/releas
 - **Disambiguation-Centric Finetuning Makes Enterprise Tool-Calling LLMs More Realistic and Less Risky** — Hathidara et al., 2025. [arXiv](https://arxiv.org/abs/2507.03336)
 - **CAPO: Cost-Aware Prompt Optimization** — Zehle et al., 2025. [AutoML 2025](https://proceedings.mlr.press/v293/zehle25a.html)
 
-## 📦 Installation
-
-| Extra | Use case |
-|---|---|
-| `pip install promptolution[api]` | API-based models (OpenAI, DeepInfra, any OpenAI-compatible provider) |
-| `pip install promptolution[transformers]` | Local inference via HuggingFace Transformers |
-| `pip install promptolution[vllm]` | Local inference via vLLM (efficient serving) |
-| `pip install promptolution[vllm,transformers]` | All local inference options |
-
-From source:
+## 🔧 Installation and Quickstart
 
 ```
-git clone https://github.com/automl/promptolution.git
-cd promptolution
-poetry install
+pip install promptolution[api]
 ```
 
-## 🔧 Quickstart
+For local inference, add `[transformers]` (HuggingFace) or `[vllm]` (vLLM serving), or both.
 
 ```python
 import pandas as pd
@@ -122,4 +111,6 @@ If you use Promptolution in your research, please cite:
 }
 ```
 
-Developed by **Timo Heiß**, **Moritz Schlager**, **Tom Zehle**, and **Henri Oberpaur** (LMU Munich, MCML, ELLIS, TUM, Uni Freiburg).
+---
+
+Developed    by **Timo Heiß**, **Moritz Schlager**, **Tom Zehle**, and **Henri Oberpaur** (LMU Munich, MCML, ELLIS, TUM, Uni Freiburg).
