@@ -2,8 +2,9 @@
 ![Coverage](https://img.shields.io/badge/Coverage-96%25-brightgreen)
 [![CI](https://github.com/automl/promptolution/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/automl/promptolution/actions/workflows/ci.yml)
 [![Docs](https://github.com/automl/promptolution/actions/workflows/docs.yml/badge.svg?branch=main)](https://github.com/automl/promptolution/actions/workflows/docs.yml)
+[![PyPI version](https://img.shields.io/pypi/v/promptolution.svg)](https://pypi.org/project/promptolution/)
 ![Code Style](https://img.shields.io/badge/Code%20Style-black-black)
-![Python Versions](https://img.shields.io/badge/Python%20Versions-≥3.10-blue)
+![Python Versions](https://img.shields.io/badge/Python%20Versions-%E2%89%A53.10-blue)
 [![Getting Started](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/automl/promptolution/blob/main/tutorials/getting_started.ipynb)
 
 ![promptolution](https://github.com/user-attachments/assets/84c050bd-61a1-4f2e-bc4e-874d9b4a69af)
@@ -31,17 +32,18 @@
 
 Have a look at our [Release Notes](https://automl.github.io/promptolution/release-notes/) for the latest updates to promptolution.
 
+## 📚 Scientific Publications Powered by Promptolution
+
+- **CAPO: Cost-Aware Prompt Optimization** — Zehle et al., 2025. [OpenReview](https://openreview.net/forum?id=UweaRrg9D0)
+
 ## 📦 Installation
 
-```
-pip install promptolution[api]
-```
-
-Local inference via vLLM or transformers:
-
-```
-pip install promptolution[vllm,transformers]
-```
+| Extra | Use case |
+|---|---|
+| `pip install promptolution[api]` | API-based models (OpenAI, DeepInfra, any OpenAI-compatible provider) |
+| `pip install promptolution[transformers]` | Local inference via HuggingFace Transformers |
+| `pip install promptolution[vllm]` | Local inference via vLLM (efficient serving) |
+| `pip install promptolution[vllm,transformers]` | All local inference options |
 
 From source:
 
@@ -53,11 +55,30 @@ poetry install
 
 ## 🔧 Quickstart
 
-Start with the **Getting Started tutorial**:
-[https://github.com/automl/promptolution/blob/main/tutorials/getting_started.ipynb](https://github.com/automl/promptolution/blob/main/tutorials/getting_started.ipynb)
+```python
+import pandas as pd
+from promptolution.utils import ExperimentConfig
+from promptolution.helpers import run_experiment
 
-Full docs:
-[https://automl.github.io/promptolution/](https://automl.github.io/promptolution/)
+# DataFrame with columns "x" (input) and "y" (label)
+df = pd.read_csv("your_data.csv")
+
+config = ExperimentConfig(
+    optimizer="capo",
+    task_description="Classify each sentence as subjective or objective.",
+    prompts=["Classify the text as objective or subjective."],  # optional seed prompts
+    n_steps=10,
+    api_url="https://api.openai.com/v1",
+    model_id="gpt-4o-mini",
+    api_key="YOUR_API_KEY",
+    n_subsamples=30,
+)
+
+best_prompts = run_experiment(df, config)
+print(best_prompts)
+```
+
+Full tutorial: [Getting Started notebook](https://github.com/automl/promptolution/blob/main/tutorials/getting_started.ipynb) · [Docs](https://automl.github.io/promptolution/)
 
 
 ## 🧠 Featured Optimizers
@@ -68,6 +89,7 @@ Full docs:
 | `EvoPromptDE` | [Guo et al., 2023](https://openreview.net/forum?id=ZG3RaNIsO8)   | required         | 👍              | 💲💲      | ✅                  | ❌            |
 | `EvoPromptGA` | [Guo et al., 2023](https://openreview.net/forum?id=ZG3RaNIsO8)   | required         | 👍              | 💲💲      | ✅                  | ❌            |
 | `OPRO`        | [Yang et al., 2023](https://openreview.net/forum?id=Bb4VGOWELI)  | optional         | 👎              | 💲💲      | ❌                  | ❌            |
+
 
 ## 🏗 Components
 
@@ -96,3 +118,17 @@ poetry run python -m coverage report -i
 ```
 
 Developed by **Timo Heiß**, **Moritz Schlager**, and **Tom Zehle** (LMU Munich, MCML, ELLIS, TUM, Uni Freiburg).
+
+## 📄 Citation
+
+If you use Promptolution in your research, please cite:
+
+```bibtex
+@inproceedings{zehle2026promptolution,
+  title={promptolution: A unified, modular framework for prompt optimization},
+  author={Zehle, Tom and Hei{\ss}, Timo and Schlager, Moritz and A{\ss}enmacher, Matthias and Feurer, Matthias},
+  booktitle={Proceedings of the 19th Conference of the European Chapter of the Association for Computational Linguistics (Volume 3: System Demonstrations)},
+  pages={282--296},
+  year={2026}
+}
+```
