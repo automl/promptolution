@@ -70,6 +70,16 @@ def test_local_llm_get_response(mock_local_dependencies):
     assert responses[1] == "Mock response 2"
 
 
+def test_local_llm_get_response_nested_single(mock_local_dependencies):
+    """Regression for #73: pipeline can return [[{...}]] for a single prompt; must be flattened."""
+    local_llm = LocalLLM(model_id="gpt2", batch_size=1)
+    mock_local_dependencies["pipeline_obj"].return_value = [[{"generated_text": "Mock response"}]]
+
+    responses = local_llm._get_response(["Hello, world!"], system_prompts=["System prompt"])
+
+    assert responses == ["Mock response"]
+
+
 @pytest.mark.parametrize(
     "model_id",
     [
