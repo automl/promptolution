@@ -34,7 +34,12 @@ Have a look at our [Release Notes](https://automl.github.io/promptolution/releas
 
 ## 📚 Scientific Publications Powered by Promptolution
 
-- **CAPO: Cost-Aware Prompt Optimization** — Zehle et al., 2025. [OpenReview](https://openreview.net/forum?id=UweaRrg9D0)
+- **CANTANTE: Optimizing Agentic Systems via Contrastive Credit Attribution** — Zehle, 2026. [arXiv](https://arxiv.org/abs/2605.13295)
+- **MO-CAPO: Multi-Objective Cost-Aware Prompt Optimization** — Büssing et al., 2026. [arXiv](https://arxiv.org/abs/2605.18869)
+- **promptolution: A Unified, Modular Framework for Prompt Optimization** — Zehle et al., 2026. [EACL 2026](https://aclanthology.org/2026.eacl-demo.21/)
+- **Can Calibration of Positional Encodings Enhance Long Context Utilization?** — Zehle & Aßenmacher, 2026. [EACL 2026](https://aclanthology.org/2026.findings-eacl.120/)
+- **Disambiguation-Centric Finetuning Makes Enterprise Tool-Calling LLMs More Realistic and Less Risky** — Hathidara et al., 2025. [arXiv](https://arxiv.org/abs/2507.03336)
+- **CAPO: Cost-Aware Prompt Optimization** — Zehle et al., 2025. [AutoML 2025](https://proceedings.mlr.press/v293/zehle25a.html)
 
 ## 📦 Installation
 
@@ -66,12 +71,11 @@ df = pd.read_csv("your_data.csv")
 config = ExperimentConfig(
     optimizer="capo",
     task_description="Classify each sentence as subjective or objective.",
-    prompts=["Classify the text as objective or subjective."],  # optional seed prompts
+    prompts=["Classify the text as objective or subjective."],
     n_steps=10,
     api_url="https://api.openai.com/v1",
     model_id="gpt-4o-mini",
     api_key="YOUR_API_KEY",
-    n_subsamples=30,
 )
 
 best_prompts = run_experiment(df, config)
@@ -117,7 +121,6 @@ poetry run python -m coverage run -m pytest
 poetry run python -m coverage report -i
 ```
 
-Developed by **Timo Heiß**, **Moritz Schlager**, and **Tom Zehle** (LMU Munich, MCML, ELLIS, TUM, Uni Freiburg).
 
 ## 📄 Citation
 
@@ -132,3 +135,5 @@ If you use Promptolution in your research, please cite:
   year={2026}
 }
 ```
+
+Developed with love by **Timo Heiß**, **Moritz Schlager**, **Tom Zehle**, and **Henri Oberpaur** (LMU Munich, MCML, ELLIS, TUM, Uni Freiburg).
