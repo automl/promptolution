@@ -45,7 +45,7 @@ task_description = (
 )
 ```
 
-### Creating Inital Prompts
+### Creating Initial Prompts
 
 We've defined some starter prompts below, but feel free to experiment! You might also want to explore create_prompts_from_samples to automatically generate initial prompts based on your data.
 
