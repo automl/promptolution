@@ -4,7 +4,7 @@ Thank you for your interest in contributing! Here's how to get started.
 
 ## Workflow
 
-Open an issue → create a branch → PR → CI → review → merge.
+Open an issue → create a branch → PR → CI → review (by owner) → merge (by owner) → release (by owner)
 
 Branch naming: `feature/...`, `fix/...`, `chore/...`, `refactor/...`.
 
