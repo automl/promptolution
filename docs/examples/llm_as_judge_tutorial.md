@@ -76,7 +76,7 @@ Our task: **Given a controversial statement, generate the strongest possible arg
 
 Let's look at what we're working with:
 
-### Creating Inital Prompts
+### Creating Initial Prompts
 
 Here are some starter prompts for generating compelling arguments. Feel free to experiment with your own!
 
