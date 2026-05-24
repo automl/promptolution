@@ -105,21 +105,7 @@ Full tutorial: [Getting Started notebook](https://github.com/automl/promptolutio
 
 ## 🤝 Contributing
 
-Open an issue → create a branch → PR → CI → review → merge.
-Branch naming: `feature/...`, `fix/...`, `chore/...`, `refactor/...`.
-
-Please ensure to use pre-commit, which assists with keeping the code quality high:
-
-```
-pre-commit install
-pre-commit run --all-files
-```
-We encourage every contributor to also write tests, that automatically check if the implementation works as expected:
-
-```
-poetry run python -m coverage run -m pytest
-poetry run python -m coverage report -i
-```
+Contributions are welcome! See [CONTRIBUTING.md](CONTRIBUTING.md) for the workflow, code quality guidelines, and how to run tests.
 
 
 ## 📄 Citation
@@ -136,4 +122,4 @@ If you use Promptolution in your research, please cite:
 }
 ```
 
-Developed with love by **Timo Heiß**, **Moritz Schlager**, **Tom Zehle**, and **Henri Oberpaur** (LMU Munich, MCML, ELLIS, TUM, Uni Freiburg).
+Developed by **Timo Heiß**, **Moritz Schlager**, **Tom Zehle**, and **Henri Oberpaur** (LMU Munich, MCML, ELLIS, TUM, Uni Freiburg).
