@@ -3,7 +3,7 @@
 
 from abc import ABC, abstractmethod
 
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Optional, Union
 
 from promptolution.utils.prompt import Prompt
 
@@ -35,11 +35,11 @@ class BaseExemplarSelector(ABC):
             config.apply_to(self)
 
     @abstractmethod
-    def select_exemplars(self, prompt: Prompt, n_examples: int = 5) -> Prompt:
+    def select_exemplars(self, prompt: Union[str, Prompt], n_examples: int = 5) -> Prompt:
         """Select exemplars based on the given prompt.
 
         Args:
-            prompt (Prompt): The input prompt to base the exemplar selection on.
+            prompt (Union[str, Prompt]): The input prompt to base the exemplar selection on. A raw string is coerced to a Prompt.
             n_examples (int, optional): The number of exemplars to select. Defaults to 5.
 
         Returns:
