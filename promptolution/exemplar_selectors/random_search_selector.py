@@ -2,6 +2,8 @@
 
 import random
 
+from typing import Union
+
 from promptolution.exemplar_selectors.base_exemplar_selector import BaseExemplarSelector
 from promptolution.utils.prompt import Prompt
 
@@ -13,20 +15,23 @@ class RandomSearchSelector(BaseExemplarSelector):
     evaluates their performance, and selects the best performing set.
     """
 
-    def select_exemplars(self, prompt: Prompt, n_examples: int = 5, n_trials: int = 5) -> Prompt:
+    def select_exemplars(self, prompt: Union[str, Prompt], n_examples: int = 5, n_trials: int = 5) -> Prompt:
         """Select exemplars using a random search strategy.
 
         This method generates multiple sets of random examples, evaluates their performance
         when combined with the original prompt, and returns the best performing set.
 
         Args:
-            prompt (Prompt): The input prompt to base the exemplar selection on.
+            prompt (Union[str, Prompt]): The input prompt to base the exemplar selection on. A raw string is coerced to a Prompt.
             n_examples (int, optional): The number of exemplars to select. Defaults to 5.
             n_trials (int, optional): The number of random trials to perform. Defaults to 5.
 
         Returns:
             Prompt: The best performing prompt, which includes the original prompt and the selected exemplars.
         """
+        if isinstance(prompt, str):
+            prompt = Prompt(prompt)
+
         best_score = 0.0
         best_prompt = prompt
 

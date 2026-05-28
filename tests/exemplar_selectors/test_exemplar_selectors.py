@@ -8,8 +8,12 @@ import pytest
 from tests.mocks.mock_predictor import MockPredictor
 
 from promptolution.exemplar_selectors.random_search_selector import RandomSearchSelector
+from promptolution.exemplar_selectors.random_selector import RandomSelector
 from promptolution.tasks.base_task import EvalResult
 from promptolution.utils.prompt import Prompt
+
+# Every concrete selector must satisfy the shared BaseExemplarSelector contract.
+SELECTOR_CLASSES = [RandomSelector, RandomSearchSelector]
 
 
 def make_eval_result(sequences, score):
@@ -29,19 +33,44 @@ def make_eval_result(sequences, score):
 def task_and_predictor():
     task = MagicMock()
     pred = MockPredictor()
+    # score 1.0 satisfies both RandomSelector (desired_score == 1) and RandomSearchSelector.
+    task.evaluate.return_value = make_eval_result([f"ex_{i}" for i in range(10)], score=1.0)
     return task, pred
 
 
-def test_random_search_selector_respects_n_examples(task_and_predictor):
+@pytest.mark.parametrize("selector_cls", SELECTOR_CLASSES)
+def test_select_exemplars_respects_n_examples(selector_cls, task_and_predictor):
     task, pred = task_and_predictor
-    sequences = [f"ex_{i}" for i in range(10)]
-    task.evaluate.return_value = make_eval_result(sequences, score=0.8)
 
-    selector = RandomSearchSelector(task, pred)
-    result = selector.select_exemplars(Prompt("Classify:"), n_examples=3, n_trials=1)
+    selector = selector_cls(task, pred)
+    result = selector.select_exemplars(Prompt("Classify:"), n_examples=3)
 
+    assert isinstance(result, Prompt)
     assert len(result.few_shots) == 3
-    assert all(ex in sequences for ex in result.few_shots)
+
+
+@pytest.mark.parametrize("selector_cls", SELECTOR_CLASSES)
+def test_select_exemplars_accepts_str_prompt(selector_cls, task_and_predictor):
+    """Regression: a raw str prompt must be coerced, not split into characters."""
+    task, pred = task_and_predictor
+
+    selector = selector_cls(task, pred)
+    result = selector.select_exemplars(prompt="Classify:", n_examples=2)
+
+    assert isinstance(result, Prompt)
+    assert result.instruction == "Classify:"
+    assert len(result.few_shots) == 2
+
+
+@pytest.mark.parametrize("selector_cls", SELECTOR_CLASSES)
+def test_select_exemplars_n_examples_kwarg(selector_cls, task_and_predictor):
+    """Regression: calling with n_examples as keyword arg must not raise TypeError."""
+    task, pred = task_and_predictor
+
+    selector = selector_cls(task, pred)
+    result = selector.select_exemplars(prompt=Prompt("Classify:"), n_examples=2)
+
+    assert len(result.few_shots) == 2
 
 
 def test_random_search_selector_returns_best_trial(task_and_predictor):
@@ -61,16 +90,3 @@ def test_random_search_selector_returns_best_trial(task_and_predictor):
 
     assert len(result.few_shots) == 2
     assert result.few_shots != []
-
-
-def test_random_search_selector_n_examples_kwarg(task_and_predictor):
-    """Regression test: calling with n_examples as keyword arg must not raise TypeError."""
-    task, pred = task_and_predictor
-    sequences = [f"ex_{i}" for i in range(5)]
-    task.evaluate.return_value = make_eval_result(sequences, score=0.5)
-
-    selector = RandomSearchSelector(task, pred)
-    # This call pattern is what triggered the original bug report
-    result = selector.select_exemplars(prompt=Prompt("Classify:"), n_examples=2)
-
-    assert len(result.few_shots) == 2
